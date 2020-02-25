@@ -11,7 +11,10 @@ class WeightReading(Model):
 
     id = Column(Integer, primary_key=True)
     datetime = Column(DateTime, default=datetime.now)
-    value = Column(Integer, nullable=False)
+    value = Column(DECIMAL(9, 4), nullable=False)
+
+    def reading(self):
+        return int(self.value)
 
     def __repr__(self):
         return "WeightReading(%r, %r)" % (

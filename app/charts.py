@@ -14,10 +14,10 @@ class ScaleChart(DirectByChartView):
     definitions = [
         {
             'label': 'Weight',
-            'group': 'value',
-            'series': ['value']
+            'group': 'datetime',
+            'series': ['reading']
         }
     ]
 
 
-appbuilder.add_view(ScaleChart, "Coffee Scale Readings", icon="fa-folder-open-o", category="Charts")
+appbuilder.add_view(ScaleChart, "Coffee Scale Readings", icon="fa-dashboard", category="Charts")
