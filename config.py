@@ -16,9 +16,9 @@ SECRET_KEY = '\2\1thi$IsmY$up3r$3cretk3y!\1\2\e\y\y\h'
 # SQLALCHEMY_DATABASE_URI = "sqlite:///" + os.path.join(basedir, "app.db")
 # SQLALCHEMY_DATABASE_URI = 'mysql://myapp@localhost/myapp'
 # SQLALCHEMY_DATABASE_URI = 'postgresql://root:password@localhost/myapp'
-SQLALCHEMY_DATABASE_URI = 'mysql+mysqldb://adminuser:Mikaleb1!@localhost/fab_coffee_scale'
+SQLALCHEMY_DATABASE_URI = 'mysql+mysqldb://adminuser:adminPa$$word1!@localhost/fab_coffee_scale'
 SQLALCHEMY_BINDS = {
-    'coffee_scale': 'mysql://adminuser:Mikaleb1!@localhost/coffee_scale'
+    'coffee_scale': 'mysql://adminuser:adminPa$$word1!@localhost/coffee_scale'
 }
 
 # Flask-WTF flag for CSRF
