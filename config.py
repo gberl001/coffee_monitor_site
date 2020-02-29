@@ -21,6 +21,9 @@ SQLALCHEMY_BINDS = {
     'coffee_scale': 'mysql://adminuser:adminPa$$word1!@localhost/coffee_scale'
 }
 
+# SQLAlchemy config
+SQLALCHEMY_TRACK_MODIFICATIONS = False
+
 # Flask-WTF flag for CSRF
 CSRF_ENABLED = True
 
