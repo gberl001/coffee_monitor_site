@@ -3,8 +3,12 @@ import sys
 import time
 
 import RPi.GPIO as GPIO
+import sqlalchemy as db
 from lib.hx711 import HX711
 from lib.lcddriver import lcd as lcddriver
+from models import WeightReading
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 
 # Config
 GRAMS_PER_OZ = 28.35
@@ -18,10 +22,12 @@ MINUTES_IN_HOUR = 60            # 60 Minutes in an hour
 MILLIS_IN_MINUTE = 60000         # 60000 ms in a minute
 EVENT_PIN = 4             # The pin that will send out an event notification
 SERIAL_DEBUG = 1             # Set to 1 to have statements printed to the monitor
+PERSIST_TO_DB = True         # Set to True to persist readings to database
 
 # Create objects
 hx = HX711(5, 6)
 lcd = lcddriver()
+dbSession = None
 
 # Global variables
 lastBrewTime = 0
@@ -29,6 +35,8 @@ latestRecordedWeight = 0.0
 
 
 def setup():
+    global dbSession
+
     # LCD Stuff
     lcd.lcd_clear()
     lcd.lcd_display_string("Please Wait...", 1)
@@ -39,6 +47,15 @@ def setup():
     hx.reset()
     time.sleep(1.0)     # Small delay for settling
     hx.tare()           # Reset the scale to 0
+
+    # Database Stuff
+    if PERSIST_TO_DB:
+        Base = declarative_base()
+        engine = db.create_engine('mysql+mysqldb://adminuser:adminPa$$word1!@localhost/coffee_scale')
+        session = sessionmaker()
+        session.configure(bind=engine)
+        Base.metadata.create_all(engine)
+        dbSession = session()
 
     # Setup the scale
     initScale()
@@ -162,7 +179,7 @@ def getCupsRemaining(reading):
 
 
 def getScaleReading():
-    global latestRecordedWeight
+    global latestRecordedWeight, s
     # Keep taking readings one second apart until they are within 1 ounce of each other (indicating stability)
     # This should ensure a reading isn't taken while weight is added or removed from the scale
     firstReading = 0
@@ -172,6 +189,14 @@ def getScaleReading():
         # I don't think the sleep is needed any longer since it takes a good 2 seconds to read the scale
         # time.sleep(1.0)
         secondReading = abs(hx.get_weight(NUM_READINGS)) / GRAMS_PER_OZ
+
+        if PERSIST_TO_DB:
+            # Insert the record into the database
+            # TODO: Need to do multi-reading commits to save on time
+            reading = WeightReading()
+            reading.value = firstReading
+            dbSession.add(reading)
+            dbSession.commit()
 
     if SERIAL_DEBUG > 0:
         print("Reading is " + str(round(secondReading, 2)))
