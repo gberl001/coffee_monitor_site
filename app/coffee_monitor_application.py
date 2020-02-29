@@ -103,6 +103,10 @@ def handleEmptyScale():
     lcd.lcd_clear()
     lcd.lcd_display_string("Waiting for", 1)
     lcd.lcd_display_string("next brew", 2)
+    # NOTE: By using scaleIsEmpty, technically any weight can be added to leave this state
+    #       which may be undesirable but for now I like it this way. In the future I may
+    #       change this to while reading is less than empty carafe so it doesn't show
+    #       negative cups
     while scaleIsEmpty(getScaleReading()):
         if SERIAL_DEBUG > 0:
             print("Tare")
@@ -160,11 +164,12 @@ def getScaleReading():
     secondReading = 10
     while abs(firstReading - secondReading) >= 1:
         firstReading = abs(hx.get_weight(NUM_READINGS)) / GRAMS_PER_OZ
-        time.sleep(1.0)
+        # I don't think the sleep is needed any longer since it takes a good 2 seconds to read the scale
+        # time.sleep(1.0)
         secondReading = abs(hx.get_weight(NUM_READINGS)) / GRAMS_PER_OZ
 
     if SERIAL_DEBUG > 0:
-        print("Reading is " + secondReading)
+        print("Reading is " + str(round(secondReading, 2)))
 
     # If the scale isn't empty, record the last weight
     if not scaleIsEmpty(secondReading):
@@ -174,21 +179,31 @@ def getScaleReading():
 
 
 def main():
-    setup()
+    try:
+        setup()
 
-    while True:
-        # Take a reading
-        reading = getScaleReading()
+        while True:
+            # Take a reading
+            reading = getScaleReading()
 
-        # Determine the state
-        if scaleIsEmpty(reading):
-            handleEmptyScale()
-        elif carafeIsEmpty(reading):
-            handleCarafeEmpty()
-        elif not (carafeIsEmpty(reading)):
-            handleCarafeNotEmpty(reading)
+            # Determine the state
+            if scaleIsEmpty(reading):
+                if SERIAL_DEBUG > 0:
+                    print("STATE: Scale is Empty")
+                handleEmptyScale()
+            elif carafeIsEmpty(reading):
+                if SERIAL_DEBUG > 0:
+                    print("STATE: Carafe is Empty")
+                handleCarafeEmpty()
+            elif not (carafeIsEmpty(reading)):
+                if SERIAL_DEBUG > 0:
+                    print("STATE: Carafe is NOT Empty")
+                handleCarafeNotEmpty(reading)
 
-        time.sleep(4.0)
+            time.sleep(2.0)
+
+    except (KeyboardInterrupt, SystemExit):
+        cleanAndExit()
 
 
 if __name__ == "__main__":
