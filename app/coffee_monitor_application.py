@@ -8,7 +8,7 @@ from lib.lcddriver import lcd as lcddriver
 
 # Config
 GRAMS_PER_OZ = 28.35
-NUM_READINGS = 33   # Should be an odd number
+NUM_READINGS = 21   # Should be an odd number
 FULL_CUP = 10          # A full cup is about 10 ounces
 SPLATTER_POINT = 73          # At this point you'll get splatter, and empty carafe is actually 69.25oz
 EMPTY_CARAFE = 69          # An empty carafe is about 69.25oz
@@ -70,13 +70,17 @@ def initScale():
 # *******************************************************************************************************
 
 def getAgeString():
+    global lastBrewTime
+    # Ugly hack
+    if lastBrewTime == 0:
+        lastBrewTime = millis()
     minutes = (millis() - lastBrewTime) / MILLIS_IN_MINUTE
 
     # Compute the hours
     strHours = str(int(math.floor(minutes / MINUTES_IN_HOUR))) + "H "
 
     # Compute the remaining minutes
-    strMinutes = str(minutes % MINUTES_IN_HOUR) + "M"
+    strMinutes = str(int(math.floor(minutes % MINUTES_IN_HOUR))) + "M"
 
     return str(strHours + strMinutes)
 
@@ -108,10 +112,11 @@ def handleEmptyScale():
     #       change this to while reading is less than empty carafe so it doesn't show
     #       negative cups
     while scaleIsEmpty(getScaleReading()):
-        if SERIAL_DEBUG > 0:
-            print("Tare")
+        # if SERIAL_DEBUG > 0:
+        #     print("Tare")
 
         # TODO: Need more data to determine whether taring here is a good idea
+        # Taking out the tare, on two occasions it "tared" with the weight on it due to delays
         hx.tare()
         time.sleep(2.0)
 
@@ -200,7 +205,8 @@ def main():
                     print("STATE: Carafe is NOT Empty")
                 handleCarafeNotEmpty(reading)
 
-            time.sleep(2.0)
+            # Not sure I need this, it's a 6 second refresh rate at 21 NUM_READINGS
+            # time.sleep(2.0)
 
     except (KeyboardInterrupt, SystemExit):
         cleanAndExit()
