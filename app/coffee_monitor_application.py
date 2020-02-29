@@ -1,4 +1,5 @@
 import math
+import subprocess
 import sys
 import time
 
@@ -32,6 +33,7 @@ dbSession = None
 # Global variables
 lastBrewTime = 0
 latestRecordedWeight = 0.0
+ipCommand = "hostname -I | cut -d\' \' -f1"
 
 
 def setup():
@@ -209,12 +211,19 @@ def getScaleReading():
 
 
 def main():
+    global ipCommand
+
     try:
         setup()
 
         while True:
             # Take a reading
             reading = getScaleReading()
+
+            # Check for an IP address (for debugging)
+            ip = subprocess.check_output(ipCommand, shell=True).decode("utf-8").strip()
+            if ip:
+                lcd.lcd_display_string("IP: " + ip)
 
             # Determine the state
             if scaleIsEmpty(reading):
