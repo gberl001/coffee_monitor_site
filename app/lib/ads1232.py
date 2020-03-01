@@ -4,26 +4,29 @@ import RPi.GPIO as GPIO
 import time
 import threading
 
+# TODO: Add capability to control gain with digital pin
+# TODO: Add capability to control speed with digital pin
 
 
-class HX711:
+class ADS1232:
 
-    def __init__(self, dout, pd_sck, gain=128):
+    def __init__(self, dout, pd_sck, pdwn):
+        # Set class values
         self.PD_SCK = pd_sck
-
         self.DOUT = dout
+        self.PDWN = pdwn
 
-        # Mutex for reading from the HX711, in case multiple threads in client
+        # Mutex for reading from the ADS1232, in case multiple threads in client
         # software try to access get values from the class at the same time.
         self.readLock = threading.Lock()
-        
+
+        # Setup pins
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.PD_SCK, GPIO.OUT)
         GPIO.setup(self.DOUT, GPIO.IN)
+        GPIO.setup(self.PDWN, GPIO.OUT)
 
-        self.GAIN = 0
-
-        # The value returned by the hx711 that corresponds to your reference
+        # The value returned by the ADS1232 that corresponds to your reference
         # unit AFTER dividing by the SCALE.
         self.REFERENCE_UNIT = 1
         self.REFERENCE_UNIT_B = 1
@@ -37,118 +40,84 @@ class HX711:
         self.byte_format = 'MSB'
         self.bit_format = 'MSB'
 
-        self.set_gain(gain)
+        # Turn on the device
+        self.power_up()
 
         # Think about whether this is necessary.
         time.sleep(1)
 
-        
     def convertFromTwosComplement24bit(self, inputValue):
         return -(inputValue & 0x800000) + (inputValue & 0x7fffff)
 
-    
     def is_ready(self):
         return GPIO.input(self.DOUT) == 0
 
-    
-    def set_gain(self, gain):
-        if gain is 128:
-            self.GAIN = 1
-        elif gain is 64:
-            self.GAIN = 3
-        elif gain is 32:
-            self.GAIN = 2
-
-        GPIO.output(self.PD_SCK, False)
-
-        # Read out a set of raw bytes and throw it away.
-        self.readRawBytes()
-
-        
-    def get_gain(self):
-        if self.GAIN == 1:
-            return 128
-        if self.GAIN == 3:
-            return 64
-        if self.GAIN == 2:
-            return 32
-
-        # Shouldn't get here.
-        return 0
-        
-
     def readNextBit(self):
-       # Clock HX711 Digital Serial Clock (PD_SCK).  DOUT will be
-       # ready 1us after PD_SCK rising edge, so we sample after
-       # lowering PD_SCL, when we know DOUT will be stable.
-       GPIO.output(self.PD_SCK, True)
-       GPIO.output(self.PD_SCK, False)
-       value = GPIO.input(self.DOUT)
+        # Clock ADS1232 Digital Serial Clock (PD_SCK).  DOUT will be
+        # ready 1us after PD_SCK rising edge, so we sample after
+        # lowering PD_SCL, when we know DOUT will be stable.
+        GPIO.output(self.PD_SCK, True)
+        GPIO.output(self.PD_SCK, False)
+        value = GPIO.input(self.DOUT)
 
-       # Convert Boolean to int and return it.
-       return int(value)
-
+        # Convert Boolean to int and return it.
+        return int(value)
 
     def readNextByte(self):
-       byteValue = 0
+        byteValue = 0
 
-       # Read bits and build the byte from top, or bottom, depending
-       # on whether we are in MSB or LSB bit mode.
-       for x in range(8):
-          if self.bit_format == 'MSB':
-             byteValue <<= 1
-             byteValue |= self.readNextBit()
-          else:
-             byteValue >>= 1              
-             byteValue |= self.readNextBit() * 0x80
+        # Read bits and build the byte from top, or bottom, depending
+        # on whether we are in MSB or LSB bit mode.
+        for x in range(8):
+            if self.bit_format == 'MSB':
+                byteValue <<= 1
+                byteValue |= self.readNextBit()
+            else:
+                byteValue >>= 1
+                byteValue |= self.readNextBit() * 0x80
 
-       # Return the packed byte.
-       return byteValue 
-        
+        # Return the packed byte.
+        return byteValue
 
     def readRawBytes(self):
         # Wait for and get the Read Lock, incase another thread is already
-        # driving the HX711 serial interface.
+        # driving the ADS1232 serial interface.
         self.readLock.acquire()
 
-        # Wait until HX711 is ready for us to read a sample.
+        # Wait until ADS1232 is ready for us to read a sample.
         while not self.is_ready():
-           pass
+            pass
 
-        # Read three bytes of data from the HX711.
-        firstByte  = self.readNextByte()
+        # Read three bytes of data from the ADS1232.
+        firstByte = self.readNextByte()
         secondByte = self.readNextByte()
-        thirdByte  = self.readNextByte()
+        thirdByte = self.readNextByte()
 
-        # HX711 Channel and gain factor are set by number of bits read
-        # after 24 data bits.
-        for i in range(self.GAIN):
-           # Clock a bit out of the HX711 and throw it away.
-           self.readNextBit()
+        # Drive the SCLK high one last time to drive DOUT high again until new data is available
+        GPIO.output(self.PD_SCK, True)
+        GPIO.output(self.PD_SCK, False)
 
-        # Release the Read Lock, now that we've finished driving the HX711
+        # Release the Read Lock, now that we've finished driving the ADS1232
         # serial interface.
         self.readLock.release()           
 
-        # Depending on how we're configured, return an orderd list of raw byte
+        # Depending on how we're configured, return an ordered list of raw byte
         # values.
         if self.byte_format == 'LSB':
-           return [thirdByte, secondByte, firstByte]
+            return [thirdByte, secondByte, firstByte]
         else:
-           return [firstByte, secondByte, thirdByte]
-
+            return [firstByte, secondByte, thirdByte]
 
     def read_long(self):
-        # Get a sample from the HX711 in the form of raw bytes.
+        # Get a sample from the ADS1232 in the form of raw bytes.
         dataBytes = self.readRawBytes()
-
 
         if self.DEBUG_PRINTING:
             print(dataBytes,)
         
         # Join the raw bytes into a single 24bit 2s complement value.
         twosComplementValue = ((dataBytes[0] << 16) |
-                               (dataBytes[1] << 8)  |
+                               (dataBytes[1] << 8) |
                                dataBytes[2])
 
         if self.DEBUG_PRINTING:
@@ -160,14 +129,13 @@ class HX711:
         # Record the latest sample value we've read.
         self.lastVal = signedIntValue
 
-        # Return the sample value we've read from the HX711.
+        # Return the sample value we've read from the ADS1232.
         return int(signedIntValue)
 
-    
     def read_average(self, times=3):
         # Make sure we've been asked to take a rational amount of samples.
         if times <= 0:
-            raise ValueError("HX711()::read_average(): times must >= 1!!")
+            raise ValueError("ADS1232()::read_average(): times must >= 1!!")
 
         # If we're only average across one value, just read it and return it.
         if times == 1:
@@ -196,42 +164,38 @@ class HX711:
         # Return the mean of remaining samples.
         return sum(valueList) / len(valueList)
 
-
     # A median-based read method, might help when getting random value spikes
     # for unknown or CPU-related reasons
     def read_median(self, times=3):
-       if times <= 0:
-          raise ValueError("HX711::read_median(): times must be greater than zero!")
-      
-       # If times == 1, just return a single reading.
-       if times == 1:
-          return self.read_long()
+        if times <= 0:
+            raise ValueError("ADS1232::read_median(): times must be greater than zero!")
 
-       valueList = []
+        # If times == 1, just return a single reading.
+        if times == 1:
+            return self.read_long()
 
-       for x in range(times):
-          valueList += [self.read_long()]
+        valueList = []
 
-       valueList.sort()
+        for x in range(times):
+            valueList += [self.read_long()]
 
-       # If times is odd we can just take the centre value.
-       if (times & 0x1) == 0x1:
-          return valueList[len(valueList) // 2]
-       else:
-          # If times is even we have to take the arithmetic mean of
-          # the two middle values.
-          midpoint = len(valueList) / 2
-          return sum(valueList[midpoint:midpoint+2]) / 2.0
+        valueList.sort()
 
+        # If times is odd we can just take the centre value.
+        if (times & 0x1) == 0x1:
+            return valueList[len(valueList) // 2]
+        else:
+            # If times is even we have to take the arithmetic mean of
+            # the two middle values.
+            midpoint = len(valueList) / 2
+        return sum(valueList[midpoint:midpoint+2]) / 2.0
 
     # Compatibility function, uses channel A version
     def get_value(self, times=3):
         return self.get_value_A(times)
 
-
     def get_value_A(self, times=3):
         return self.read_median(times) - self.get_offset_A()
-
 
     def get_value_B(self, times=3):
         # for channel B, we need to set_gain(32)
@@ -245,7 +209,6 @@ class HX711:
     def get_weight(self, times=3):
         return self.get_weight_A(times)
 
-
     def get_weight_A(self, times=3):
         value = self.get_value_A(times)
         value = value / self.REFERENCE_UNIT
@@ -256,12 +219,10 @@ class HX711:
         value = value / self.REFERENCE_UNIT_B
         return value
 
-    
     # Sets tare for channel A for compatibility purposes
     def tare(self, times=15):
         self.tare_A(times)
-    
-    
+
     def tare_A(self, times=15):
         # Backup REFERENCE_UNIT value
         backupReferenceUnit = self.get_reference_unit_A()
@@ -278,7 +239,6 @@ class HX711:
         self.set_reference_unit_A(backupReferenceUnit)
 
         return value
-
 
     def tare_B(self, times=15):
         # Backup REFERENCE_UNIT value
@@ -302,8 +262,6 @@ class HX711:
        
         return value
 
-
-    
     def set_reading_format(self, byte_format="LSB", bit_format="MSB"):
         if byte_format == "LSB":
             self.byte_format = byte_format
@@ -318,9 +276,6 @@ class HX711:
             self.bit_format = bit_format
         else:
             raise ValueError("Unrecognised bitformat: \"%s\"" % bit_format)
-
-            
-
 
     # sets offset for channel A for compatibility reasons
     def set_offset(self, offset):
@@ -341,86 +296,63 @@ class HX711:
     def get_offset_B(self):
         return self.OFFSET_B
 
-
-    
     def set_reference_unit(self, reference_unit):
         self.set_reference_unit_A(reference_unit)
 
-        
     def set_reference_unit_A(self, reference_unit):
         # Make sure we aren't asked to use an invalid reference unit.
         if reference_unit == 0:
-            raise ValueError("HX711::set_reference_unit_A() can't accept 0 as a reference unit!")
-            return
+            raise ValueError("ADS1232::set_reference_unit_A() can't accept 0 as a reference unit!")
 
         self.REFERENCE_UNIT = reference_unit
 
-        
     def set_reference_unit_B(self, reference_unit):
         # Make sure we aren't asked to use an invalid reference unit.
         if reference_unit == 0:
-            raise ValueError("HX711::set_reference_unit_A() can't accept 0 as a reference unit!")
-            return
+            raise ValueError("ADS1232::set_reference_unit_A() can't accept 0 as a reference unit!")
 
         self.REFERENCE_UNIT_B = reference_unit
-
 
     def get_reference_unit(self):
         return self.get_reference_unit_A()
 
-        
     def get_reference_unit_A(self):
         return self.REFERENCE_UNIT
 
-        
     def get_reference_unit_B(self):
         return self.REFERENCE_UNIT_B
-        
-        
+
     def power_down(self):
-        # Wait for and get the Read Lock, incase another thread is already
-        # driving the HX711 serial interface.
+        # Wait for and get the Read Lock, in case another thread is already
+        # driving the ADS1232 serial interface.
         self.readLock.acquire()
 
-        # Cause a rising edge on HX711 Digital Serial Clock (PD_SCK).  We then
-        # leave it held up and wait 100 us.  After 60us the HX711 should be
-        # powered down.
-        GPIO.output(self.PD_SCK, False)
-        GPIO.output(self.PD_SCK, True)
+        # Drive PWDN pin low
+        GPIO.output(self.PDWN, False)
 
+        # The minimum PWDN pulse width is 26us so let's wait 100us
         time.sleep(0.0001)
 
-        # Release the Read Lock, now that we've finished driving the HX711
+        # Release the Read Lock, now that we've finished driving the ADS1232
         # serial interface.
         self.readLock.release()           
 
-
     def power_up(self):
-        # Wait for and get the Read Lock, incase another thread is already
-        # driving the HX711 serial interface.
+        # Wait for and get the Read Lock, in case another thread is already
+        # driving the ADS1232 serial interface.
         self.readLock.acquire()
 
-        # Lower the HX711 Digital Serial Clock (PD_SCK) line.
-        GPIO.output(self.PD_SCK, False)
+        # Drive the PWDN pin high, this assumes that AVDD (5V) and DVDD (3.3V) are already on
+        # as they must be powered on at least 10uS before PWDN in order to power up this device
+        GPIO.output(self.PDWN, True)
 
-        # Wait 100 us for the HX711 to power back up.
+        # Wait 100 us for the ADS1232 to power back up. Technically the minimum is about 9us
         time.sleep(0.0001)
 
-        # Release the Read Lock, now that we've finished driving the HX711
+        # Release the Read Lock, now that we've finished driving the ADS1232
         # serial interface.
         self.readLock.release()
-
-        # HX711 will now be defaulted to Channel A with gain of 128.  If this
-        # isn't what client software has requested from us, take a sample and
-        # throw it away, so that next sample from the HX711 will be from the
-        # correct channel/gain.
-        if self.get_gain() != 128:
-            self.readRawBytes()
-
 
     def reset(self):
         self.power_down()
         self.power_up()
-
-
-# EOF - hx711.py

@@ -5,7 +5,7 @@ import time
 
 import RPi.GPIO as GPIO
 import sqlalchemy as db
-from lib.hx711 import HX711
+from lib.ads1232 import ADS1232
 from lib.lcddriver import lcd as lcddriver
 from models import WeightReading
 from sqlalchemy.ext.declarative import declarative_base
@@ -26,7 +26,7 @@ SERIAL_DEBUG = 1             # Set to 1 to have statements printed to the monito
 PERSIST_TO_DB = True         # Set to True to persist readings to database
 
 # Create objects
-hx = HX711(5, 6)
+scale = ADS1232(5, 6, 21)
 lcd = lcddriver()
 dbSession = None
 
@@ -44,11 +44,11 @@ def setup():
     lcd.lcd_display_string("Please Wait...", 1)
 
     # Scale Stuff
-    hx.set_reading_format("MSB", "MSB")
-    hx.set_reference_unit(21)
-    hx.reset()
+    scale.set_reading_format("MSB", "MSB")
+    scale.set_reference_unit(21)
+    scale.reset()
     time.sleep(1.0)     # Small delay for settling
-    hx.tare()           # Reset the scale to 0
+    scale.tare()           # Reset the scale to 0
 
     # Database Stuff
     if PERSIST_TO_DB:
@@ -137,7 +137,7 @@ def handleEmptyScale():
 
         # TODO: Need more data to determine whether taring here is a good idea
         # Taking out the tare, on two occasions it "tared" with the weight on it due to delays
-        hx.tare()
+        scale.tare()
         time.sleep(2.0)
 
     # Now that the scale isn't empty, determine if more coffee was added
@@ -188,10 +188,10 @@ def getScaleReading():
     firstReading = 0
     secondReading = 10
     while abs(firstReading - secondReading) >= 1:
-        firstReading = abs(hx.get_weight(NUM_READINGS)) / GRAMS_PER_OZ
-        # I don't think the sleep is needed any longer since it takes a good 2 seconds to read the scale
-        # time.sleep(1.0)
-        secondReading = abs(hx.get_weight(NUM_READINGS)) / GRAMS_PER_OZ
+        firstReading = abs(scale.get_weight(NUM_READINGS)) / GRAMS_PER_OZ
+        # Delay between readings
+        time.sleep(1.0)
+        secondReading = abs(scale.get_weight(NUM_READINGS)) / GRAMS_PER_OZ
 
         if PERSIST_TO_DB:
             # Insert the record into the database
@@ -242,8 +242,8 @@ def main():
                     print("STATE: Carafe is NOT Empty")
                 handleCarafeNotEmpty(reading)
 
-            # Not sure I need this, it's a 6 second refresh rate at 21 NUM_READINGS
-            # time.sleep(2.0)
+            # Take some time between refreshes
+            time.sleep(2.0)
 
     except (KeyboardInterrupt, SystemExit):
         cleanAndExit()
