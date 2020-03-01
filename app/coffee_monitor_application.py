@@ -61,6 +61,7 @@ def setup():
 
     # Setup the scale
     initScale()
+    GPIO.setup(EVENT_PIN, GPIO.OUT)
 
 
 def cleanAndExit():
@@ -223,7 +224,9 @@ def main():
             # Check for an IP address (for debugging)
             ip = subprocess.check_output(ipCommand, shell=True).decode("utf-8").strip()
             if ip:
-                lcd.lcd_display_string("IP: " + ip)
+                # TODO: Tech Debt, this is a hack, the IP is cleared instantaneously so I added a 1 second delay
+                lcd.lcd_display_string("IP: " + ip, 4)
+                time.sleep(1.0)
 
             # Determine the state
             if scaleIsEmpty(reading):
