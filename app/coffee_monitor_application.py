@@ -20,6 +20,7 @@ FULL_CUP = 10          # A full cup is about 10 ounces
 SPLATTER_POINT = 73          # At this point you'll get splatter, and empty carafe is actually 69.25oz
 EMPTY_CARAFE = 69          # An empty carafe is about 69.25oz
 FULL_CARAFE = 150         # A full carafe is about 150oz
+HALF_CARAFE = EMPTY_CARAFE + (FULL_CARAFE - EMPTY_CARAFE)/2  # Rough estimate of where a half brew should be
 EMPTY_SCALE_THRESHOLD = 10          # Assume the scale is empty at 10 ounces
 MINUTES_IN_HOUR = 60            # 60 Minutes in an hour
 MILLIS_IN_MINUTE = 60000         # 60000 ms in a minute
@@ -37,6 +38,7 @@ lastBrewTime = 0
 latestRecordedWeight = 0.0
 ipCommand = "hostname -I | cut -d\' \' -f1"
 ipAddress = ""
+fullBrew = True
 
 
 def setup():
@@ -124,16 +126,16 @@ def handleCarafeEmpty():
 
 
 def handleCarafeNotEmpty(reading):
-    global ipAddress
+    global ipAddress, fullBrew
     # Display the age and cups remaining
     lcd.lcd_clear()
     lcd.lcd_display_string("Age: " + str(getAgeString()), 1)
-    lcd.lcd_display_string("Cups Left: " + str(round(getCupsRemaining(reading), 2)), 2)
+    lcd.lcd_display_string("Cups Left: " + str(round(getCupsRemaining(reading), 2)) + "" if fullBrew else "*", 2)
     printIP()
 
 
 def handleEmptyScale():
-    global latestRecordedWeight, ipAddress
+    global latestRecordedWeight, ipAddress, fullBrew
 
     # Either there is a new brew coming or someone simply lifted the carafe temporarily, record the previous weight
     previousWeight = latestRecordedWeight
@@ -158,8 +160,14 @@ def handleEmptyScale():
         # scale.tare()
         time.sleep(2.0)
 
-    # Now that the scale isn't empty, determine if more coffee was added
+    # Now that the scale isn't empty, determine if more coffee was added (at least one cup)
     if latestRecordedWeight > previousWeight + FULL_CUP:
+        # If the weight is within two cups of HALF_CARAFE then assume a half brew
+        # TODO: This weight needs to be double checked (half brew may not literally be a half brew)
+        if HALF_CARAFE - FULL_CUP < latestRecordedWeight - previousWeight < HALF_CARAFE + FULL_CUP:
+            fullBrew = False
+        else:
+            fullBrew = True
         # If the new wight is at least one more cup of coffee more than the old, assume a new brew
         handleFreshBrew()
 
