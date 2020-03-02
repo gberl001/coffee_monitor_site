@@ -3,6 +3,8 @@ import subprocess
 import sys
 import time
 
+sys.path.append('/home/pi/repos/python/coffee_monitor_site/app/lib')
+
 import RPi.GPIO as GPIO
 import sqlalchemy as db
 from lib.ads1232 import ADS1232
@@ -34,16 +36,20 @@ dbSession = None
 lastBrewTime = 0
 latestRecordedWeight = 0.0
 ipCommand = "hostname -I | cut -d\' \' -f1"
+ipAddress = ""
 
 
 def setup():
-    global dbSession
+    global dbSession, ipAddress
 
     # LCD Stuff
+    print("Setting up LCD...")
     lcd.lcd_clear()
     lcd.lcd_display_string("Please Wait...", 1)
+    lcd.lcd_display_string("IP: " + ipAddress, 4)
 
     # Scale Stuff
+    print("Setting up scale...")
     scale.set_reading_format("MSB", "MSB")
     scale.set_reference_unit(21)
     scale.reset()
@@ -51,6 +57,7 @@ def setup():
     scale.tare()           # Reset the scale to 0
 
     # Database Stuff
+    print("Setting up database...")
     if PERSIST_TO_DB:
         Base = declarative_base()
         engine = db.create_engine('mysql+mysqldb://adminuser:adminPa$$word1!@localhost/coffee_scale')
@@ -60,6 +67,7 @@ def setup():
         dbSession = session()
 
     # Setup the scale
+    print("Initializing Coffee Monitor...")
     initScale()
     GPIO.setup(EVENT_PIN, GPIO.OUT)
 
@@ -73,14 +81,17 @@ def cleanAndExit():
 
 
 def initScale():
+    global ipAddress
     # Ready
     lcd.lcd_clear()
     lcd.lcd_display_string("Ready", 1)
     lcd.lcd_display_string("Add container", 2)
 
     # Wait for scale to have weight added to it.
-    while getScaleReading() < 1.0:
-        time.sleep(2.0)
+    while getScaleReading() < 3.0:
+        printIP()
+
+        time.sleep(1.0)
 
 
 # *******************************************************************************************************
@@ -106,19 +117,23 @@ def getAgeString():
 
 
 def handleCarafeEmpty():
+    global ipAddress
     lcd.lcd_clear()
     lcd.lcd_display_string("Empty Container", 1)
+    lcd.lcd_display_string("IP: " + ipAddress, 4)
 
 
 def handleCarafeNotEmpty(reading):
+    global ipAddress
     # Display the age and cups remaining
     lcd.lcd_clear()
     lcd.lcd_display_string("Age: " + str(getAgeString()), 1)
     lcd.lcd_display_string("Cups Left: " + str(round(getCupsRemaining(reading), 2)), 2)
+    lcd.lcd_display_string("IP: " + ipAddress, 4)
 
 
 def handleEmptyScale():
-    global latestRecordedWeight
+    global latestRecordedWeight, ipAddress
 
     # Either there is a new brew coming or someone simply lifted the carafe temporarily, record the previous weight
     previousWeight = latestRecordedWeight
@@ -127,6 +142,7 @@ def handleEmptyScale():
     lcd.lcd_clear()
     lcd.lcd_display_string("Waiting for", 1)
     lcd.lcd_display_string("next brew", 2)
+    lcd.lcd_display_string("IP: " + ipAddress, 4)
     # NOTE: By using scaleIsEmpty, technically any weight can be added to leave this state
     #       which may be undesirable but for now I like it this way. In the future I may
     #       change this to while reading is less than empty carafe so it doesn't show
@@ -135,9 +151,11 @@ def handleEmptyScale():
         # if SERIAL_DEBUG > 0:
         #     print("Tare")
 
+        printIP()
+
         # TODO: Need more data to determine whether taring here is a good idea
         # Taking out the tare, on two occasions it "tared" with the weight on it due to delays
-        scale.tare()
+        # scale.tare()
         time.sleep(2.0)
 
     # Now that the scale isn't empty, determine if more coffee was added
@@ -188,6 +206,8 @@ def getScaleReading():
     firstReading = 0
     secondReading = 10
     while abs(firstReading - secondReading) >= 1:
+        printIP()
+
         firstReading = abs(scale.get_weight(NUM_READINGS)) / GRAMS_PER_OZ
         # Delay between readings
         time.sleep(1.0)
@@ -211,8 +231,16 @@ def getScaleReading():
     return secondReading
 
 
+def printIP():
+    global ipCommand, ipAddress
+    # Check for an IP address (for debugging)
+    ipAddress = subprocess.check_output(ipCommand, shell=True).decode("utf-8").strip()
+    if ipAddress:
+        lcd.lcd_display_string("IP: " + ipAddress, 4)
+
+
 def main():
-    global ipCommand
+    global ipCommand, ipAddress
 
     try:
         setup()
@@ -222,11 +250,7 @@ def main():
             reading = getScaleReading()
 
             # Check for an IP address (for debugging)
-            ip = subprocess.check_output(ipCommand, shell=True).decode("utf-8").strip()
-            if ip:
-                # TODO: Tech Debt, this is a hack, the IP is cleared instantaneously so I added a 1 second delay
-                lcd.lcd_display_string("IP: " + ip, 4)
-                time.sleep(1.0)
+            ipAddress = subprocess.check_output(ipCommand, shell=True).decode("utf-8").strip()
 
             # Determine the state
             if scaleIsEmpty(reading):
