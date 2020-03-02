@@ -164,7 +164,7 @@ def handleEmptyScale():
     if latestRecordedWeight > previousWeight + FULL_CUP:
         # If the weight is within two cups of HALF_CARAFE then assume a half brew
         # TODO: This weight needs to be double checked (half brew may not literally be a half brew)
-        if HALF_CARAFE - FULL_CUP < latestRecordedWeight - previousWeight < HALF_CARAFE + FULL_CUP:
+        if HALF_CARAFE - FULL_CUP < latestRecordedWeight < HALF_CARAFE + FULL_CUP:
             fullBrew = False
         else:
             fullBrew = True
