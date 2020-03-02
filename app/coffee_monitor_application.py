@@ -46,7 +46,7 @@ def setup():
     print("Setting up LCD...")
     lcd.lcd_clear()
     lcd.lcd_display_string("Please Wait...", 1)
-    lcd.lcd_display_string("IP: " + ipAddress, 4)
+    printIP()
 
     # Scale Stuff
     print("Setting up scale...")
@@ -120,7 +120,7 @@ def handleCarafeEmpty():
     global ipAddress
     lcd.lcd_clear()
     lcd.lcd_display_string("Empty Container", 1)
-    lcd.lcd_display_string("IP: " + ipAddress, 4)
+    printIP()
 
 
 def handleCarafeNotEmpty(reading):
@@ -129,7 +129,7 @@ def handleCarafeNotEmpty(reading):
     lcd.lcd_clear()
     lcd.lcd_display_string("Age: " + str(getAgeString()), 1)
     lcd.lcd_display_string("Cups Left: " + str(round(getCupsRemaining(reading), 2)), 2)
-    lcd.lcd_display_string("IP: " + ipAddress, 4)
+    printIP()
 
 
 def handleEmptyScale():
@@ -142,7 +142,7 @@ def handleEmptyScale():
     lcd.lcd_clear()
     lcd.lcd_display_string("Waiting for", 1)
     lcd.lcd_display_string("next brew", 2)
-    lcd.lcd_display_string("IP: " + ipAddress, 4)
+
     # NOTE: By using scaleIsEmpty, technically any weight can be added to leave this state
     #       which may be undesirable but for now I like it this way. In the future I may
     #       change this to while reading is less than empty carafe so it doesn't show
