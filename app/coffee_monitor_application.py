@@ -9,7 +9,7 @@ import RPi.GPIO as GPIO
 import sqlalchemy as db
 from lib.ads1232 import ADS1232
 from lib.lcddriver import lcd as lcddriver
-from models import WeightReading
+from models import WeightReading, ScaleOffsetRecording
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -46,9 +46,7 @@ def setup():
 
     # LCD Stuff
     print("Setting up LCD...")
-    lcd.lcd_clear()
-    lcd.lcd_display_string("Please Wait...", 1)
-    printIP()
+    printToLCD("Please Wait...")
 
     # Scale Stuff
     print("Setting up scale...")
@@ -68,6 +66,13 @@ def setup():
         Base.metadata.create_all(engine)
         dbSession = session()
 
+    # Log the offset reading
+    if PERSIST_TO_DB:
+        reading = ScaleOffsetRecording()
+        reading.value = scale.get_offset()
+        dbSession.add(reading)
+        dbSession.commit()
+
     # Setup the scale
     print("Initializing Coffee Monitor...")
     initScale()
@@ -85,13 +90,12 @@ def cleanAndExit():
 def initScale():
     global ipAddress
     # Ready
-    lcd.lcd_clear()
-    lcd.lcd_display_string("Ready", 1)
-    lcd.lcd_display_string("Add container", 2)
+    printToLCD("Ready", "Add container")
 
     # Wait for scale to have weight added to it.
     while getScaleReading() < 3.0:
-        printIP()
+        # This will just update the IP address
+        printToLCD("", "", "", "", False)
 
         time.sleep(1.0)
 
@@ -120,18 +124,14 @@ def getAgeString():
 
 def handleCarafeEmpty():
     global ipAddress
-    lcd.lcd_clear()
-    lcd.lcd_display_string("Empty Container", 1)
-    printIP()
+    printToLCD("Empty Container")
 
 
 def handleCarafeNotEmpty(reading):
     global ipAddress, fullBrew
     # Display the age and cups remaining
-    lcd.lcd_clear()
-    lcd.lcd_display_string("Age: " + str(getAgeString()), 1)
-    lcd.lcd_display_string("Cups Left: " + str(round(getCupsRemaining(reading), 2)) + "" if fullBrew else "*", 2)
-    printIP()
+
+    printToLCD("Age: " + str(getAgeString()), "Cups Left: " + str(round(getCupsRemaining(reading), 2)) + "" if fullBrew else "*")
 
 
 def handleEmptyScale():
@@ -153,7 +153,8 @@ def handleEmptyScale():
         # if SERIAL_DEBUG > 0:
         #     print("Tare")
 
-        printIP()
+        # This will just update the IP address
+        printToLCD("", "", "", "", False)
 
         # TODO: Need more data to determine whether taring here is a good idea
         # Taking out the tare, on two occasions it "tared" with the weight on it due to delays
@@ -214,7 +215,8 @@ def getScaleReading():
     firstReading = 0
     secondReading = 10
     while abs(firstReading - secondReading) >= 1:
-        printIP()
+        # This will just update the IP address
+        printToLCD("", "", "", "", False)
 
         firstReading = abs(scale.get_weight(NUM_READINGS)) / GRAMS_PER_OZ
         # Delay between readings
@@ -239,12 +241,23 @@ def getScaleReading():
     return secondReading
 
 
-def printIP():
-    global ipCommand, ipAddress
-    # Check for an IP address (for debugging)
-    ipAddress = subprocess.check_output(ipCommand, shell=True).decode("utf-8").strip()
-    if ipAddress:
-        lcd.lcd_display_string("IP: " + ipAddress, 4)
+def printToLCD(line1="", line2="", line3="", line4="", clearScreen=True):
+    global ipCommand
+
+    if clearScreen:
+        lcd.lcd_clear()
+
+    lcd.lcd_display_string(line1, 1)
+    lcd.lcd_display_string(line2, 2)
+    lcd.lcd_display_string(line3, 3)
+
+    # If there is no line 4 provided, add the IP address (if there is one) for debugging
+    if not line4:
+        ipAddress = subprocess.check_output(ipCommand, shell=True).decode("utf-8").strip()
+        if ipAddress:
+            lcd.lcd_display_string("IP: " + ipAddress, 4)
+    else:
+        lcd.lcd_display_string(line4, 4)
 
 
 def main():
