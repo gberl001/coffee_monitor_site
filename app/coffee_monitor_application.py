@@ -9,7 +9,7 @@ import RPi.GPIO as GPIO
 import sqlalchemy as db
 from lib.ads1232 import ADS1232
 from lib.lcddriver import lcd as lcddriver
-from models import WeightReading
+from models import WeightReading, ScaleOffsetRecording
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -63,6 +63,13 @@ def setup():
         session.configure(bind=engine)
         Base.metadata.create_all(engine)
         dbSession = session()
+
+    # Log the offset reading
+    if PERSIST_TO_DB:
+        reading = ScaleOffsetRecording()
+        reading.value = scale.get_offset()
+        dbSession.add(reading)
+        dbSession.commit()
 
     # Setup the scale
     print("Initializing Coffee Monitor...")

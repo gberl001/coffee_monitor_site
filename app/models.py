@@ -11,7 +11,7 @@ class WeightReading(Model):
 
     id = Column(Integer, primary_key=True)
     datetime = Column(DateTime, default=datetime.now)
-    value = Column(DECIMAL(9, 4), nullable=False)
+    value = Column(DECIMAL(13, 4), nullable=False)
 
     def reading(self):
         return int(self.value)
@@ -39,6 +39,22 @@ class Event(Model):
 
     def __repr__(self):
         return self.name.encode("utf8")
+
+
+class ScaleOffsetRecording(Model):
+    __tablename__ = 'scale_offset_recording'
+    __bind_key__ = 'coffee_scale'
+
+    id = Column(Integer, primary_key=True)
+    datetime = Column(DateTime, default=datetime.now)
+    value = Column(DECIMAL(9, 4), nullable=False)
+
+    def reading(self):
+        return int(self.value)
+
+    def __repr__(self):
+        return "ScaleOffsetRecording(%r, %r)" % (
+            self.datetime, self.value)
 
 
 class DetectedEvent(Model):
