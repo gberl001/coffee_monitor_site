@@ -209,6 +209,12 @@ def getScaleReading():
         # This will just update the IP address
         printToLCD("", "", "", "", False)
 
+        # Added this in the hopes that it fixes the random bad readings. The problem
+        # is that occasionally I will see the scale just go haywire and from that
+        # point forward, the readings are useless. I'm assuming it's because somehow
+        # the bit triggers are off so I'm hoping resetting the device avoids this.
+        scale.reset()
+
         firstReading = abs(scale.get_weight(NUM_READINGS)) / GRAMS_PER_OZ
         # Delay between readings
         time.sleep(1.0)
