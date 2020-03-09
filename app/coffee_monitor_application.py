@@ -2,6 +2,7 @@ import math
 import subprocess
 import sys
 import time
+import requests
 
 sys.path.append('/home/pi/repos/python/coffee_monitor_site/app/lib')
 
@@ -170,10 +171,8 @@ def handleFreshBrew():
     # Update the last brew time
     lastBrewTime = millis()
 
-    # Notify the WiFi module driving the event pin HIGH for half a second
-    GPIO.output(EVENT_PIN, True)
-    time.sleep(0.5)
-    GPIO.output(EVENT_PIN, False)
+    # Notify Slack
+    pingSlack()
 
 
 # *******************************************************************************************************
@@ -256,6 +255,14 @@ def printToLCD(line1="", line2="", line3="", line4="", clearScreen=True):
     else:
         lcd.lcd_display_string(line4, 4)
 
+
+def pingSlack():
+    url = "https://hooks.slack.com/services/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"
+    message = "{'text': 'There is fresh coffee! :coffee::coffee:'}"
+
+    response = requests.post(url, json=message, headers={"Content-Type": "application/json"})
+
+    print("Slack Message Sent: " + str(response.status_code))
 
 def main():
     global ipCommand, ipAddress
