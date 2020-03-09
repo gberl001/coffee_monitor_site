@@ -1,3 +1,4 @@
+import enum
 import math
 import subprocess
 import sys
@@ -9,7 +10,7 @@ import RPi.GPIO as GPIO
 import sqlalchemy as db
 from lib.ads1232 import ADS1232
 from lib.lcddriver import lcd as lcddriver
-from models import WeightReading, ScaleOffsetRecording
+from models import WeightReading, ScaleOffsetRecording, Event, DetectedEvent
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -27,6 +28,14 @@ EVENT_PIN = 4             # The pin that will send out an event notification
 SERIAL_DEBUG = 1             # Set to 1 to have statements printed to the monitor
 PERSIST_TO_DB = True         # Set to True to persist readings to database
 
+
+class State(enum.Enum):
+    emptyScale = 1
+    emptyCarafe = 2
+    nonEmptyCarafe = 3
+    freshBrew = 4
+
+
 # Create objects
 scale = ADS1232(5, 6, 21)
 lcd = lcddriver()
@@ -36,11 +45,11 @@ dbSession = None
 lastBrewTime = 0
 latestRecordedWeight = 0.0
 ipCommand = "hostname -I | cut -d\' \' -f1"
-ipAddress = ""
+currentState = State.emptyCarafe    # Start with non-empty scale so it initially records empty scale
 
 
 def setup():
-    global dbSession, ipAddress
+    global dbSession
 
     # LCD Stuff
     print("Setting up LCD...")
@@ -86,7 +95,6 @@ def cleanAndExit():
 
 
 def initScale():
-    global ipAddress
     # Ready
     printToLCD("Ready", "Add container")
 
@@ -121,18 +129,33 @@ def getAgeString():
 
 
 def handleCarafeEmpty():
-    global ipAddress
+    global currentState
+
+    # Record the event in the database
+    if PERSIST_TO_DB and currentState != State.emptyCarafe:
+        emptyCarafeEvent = dbSession.query(Event).filter(Event.name == 'Empty Carafe')
+        # emptyCarafeEvent = Event.query.filter_by(name='Empty Carafe').first()
+        emptyCarafe = DetectedEvent()
+        emptyCarafe.event = emptyCarafeEvent
+        dbSession.add(emptyCarafe)
+        dbSession.commit()
+
+    currentState = State.emptyCarafe
+
     printToLCD("Empty Container")
 
 
 def handleCarafeNotEmpty(reading):
-    global ipAddress
+    global currentState
+
     # Display the age and cups remaining
     printToLCD("Age: " + str(getAgeString()), "Cups Left: " + str(round(getCupsRemaining(reading), 2)))
 
+    currentState = State.nonEmptyCarafe
+
 
 def handleEmptyScale():
-    global latestRecordedWeight, ipAddress
+    global latestRecordedWeight, currentState
 
     # Either there is a new brew coming or someone simply lifted the carafe temporarily, record the previous weight
     previousWeight = latestRecordedWeight
@@ -141,6 +164,17 @@ def handleEmptyScale():
     lcd.lcd_clear()
     lcd.lcd_display_string("Waiting for", 1)
     lcd.lcd_display_string("next brew", 2)
+
+    # Record the event in the database
+    if PERSIST_TO_DB and currentState != State.emptyScale:
+        emptyScaleEvent = dbSession.query(Event).filter(Event.name == 'Empty Scale')
+        # emptyScaleEvent = Event.query.filter_by(name='Empty Scale').first()
+        emptyScale = DetectedEvent()
+        emptyScale.event = emptyScaleEvent
+        dbSession.add(emptyScale)
+        dbSession.commit()
+
+    currentState = State.emptyScale
 
     # NOTE: By using scaleIsEmpty, technically any weight can be added to leave this state
     #       which may be undesirable but for now I like it this way. In the future I may
@@ -165,15 +199,26 @@ def handleEmptyScale():
 
 
 def handleFreshBrew():
-    global lastBrewTime
+    global lastBrewTime, currentState
 
     # Update the last brew time
     lastBrewTime = millis()
+
+    # Record the event in the database
+    if PERSIST_TO_DB and currentState != State.freshBrew:
+        fullBrewEvent = dbSession.query(Event).filter(Event.name == 'Full Brew')
+        # fullBrewEvent = Event.query.filter_by(name='Full Brew').first()
+        newBrew = DetectedEvent()
+        newBrew.event = fullBrewEvent
+        dbSession.add(newBrew)
+        dbSession.commit()
 
     # Notify the WiFi module driving the event pin HIGH for half a second
     GPIO.output(EVENT_PIN, True)
     time.sleep(0.5)
     GPIO.output(EVENT_PIN, False)
+
+    currentState = State.freshBrew
 
 
 # *******************************************************************************************************
@@ -200,7 +245,7 @@ def getCupsRemaining(reading):
 
 
 def getScaleReading():
-    global latestRecordedWeight, s
+    global latestRecordedWeight
     # Keep taking readings one second apart until they are within 1 ounce of each other (indicating stability)
     # This should ensure a reading isn't taken while weight is added or removed from the scale
     firstReading = 0
@@ -258,7 +303,7 @@ def printToLCD(line1="", line2="", line3="", line4="", clearScreen=True):
 
 
 def main():
-    global ipCommand, ipAddress
+    global ipCommand
 
     try:
         setup()
@@ -266,9 +311,6 @@ def main():
         while True:
             # Take a reading
             reading = getScaleReading()
-
-            # Check for an IP address (for debugging)
-            ipAddress = subprocess.check_output(ipCommand, shell=True).decode("utf-8").strip()
 
             # Determine the state
             if scaleIsEmpty(reading):
