@@ -25,7 +25,7 @@ EMPTY_SCALE_THRESHOLD = 10          # Assume the scale is empty at 10 ounces
 MINUTES_IN_HOUR = 60            # 60 Minutes in an hour
 MILLIS_IN_MINUTE = 60000         # 60000 ms in a minute
 EVENT_PIN = 4             # The pin that will send out an event notification
-SERIAL_DEBUG = 1             # Set to 1 to have statements printed to the monitor
+SERIAL_DEBUG = 0             # Set to 1 to have statements printed to the monitor
 PERSIST_TO_DB = True         # Set to True to persist readings to database
 
 # Create objects
