@@ -17,17 +17,16 @@ from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 
 # Config
-GRAMS_PER_OZ = 28.35
-NUM_READINGS = 21   # Should be an odd number
-FULL_CUP = 10          # A full cup is about 10 ounces
-SPLATTER_POINT = 73          # At this point you'll get splatter, and empty carafe is actually 69.25oz
-EMPTY_CARAFE = 69          # An empty carafe is about 69.25oz
-FULL_CARAFE = 150         # A full carafe is about 150oz
-EMPTY_SCALE_THRESHOLD = 10          # Assume the scale is empty at 10 ounces
+GRAMS_PER_OZ = 28.35            # Grams to Oz conversion factor
+NUM_READINGS = 21               # Number of readings to take on the scale, we then take the median reading
+FULL_CUP = 10                   # A full cup is about 10 ounces
+SPLATTER_POINT = 73             # At this point you'll get splatter, and empty carafe is actually 69.25oz
+EMPTY_CARAFE = 69               # An empty carafe is about 69.25oz
+FULL_CARAFE = 150               # A full carafe is about 150oz
+EMPTY_SCALE_THRESHOLD = 10      # Assume the scale is empty at 10 ounces or less
 MINUTES_IN_HOUR = 60            # 60 Minutes in an hour
-MILLIS_IN_MINUTE = 60000         # 60000 ms in a minute
-EVENT_PIN = 4             # The pin that will send out an event notification
-PERSIST_TO_DB = True         # Set to True to persist readings to database
+MILLIS_IN_MINUTE = 60000        # 60000 ms in a minute
+PERSIST_TO_DB = True            # Set to True to persist readings to database
 
 # Global variables
 lastBrewTime = 0
@@ -79,7 +78,6 @@ def setup():
     # Setup the scale
     logging.info(str(datetime.now()) + ": " + "Initializing Coffee Monitor...")
     initScale()
-    GPIO.setup(EVENT_PIN, GPIO.OUT)
 
 
 def cleanAndExit():
