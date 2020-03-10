@@ -1,4 +1,4 @@
-#To start your application using Flask-AppBuilder
+#To setup your application
 
 ## Install dependencies:
 Some steps may require additional dependencies, the following will be enough
@@ -8,10 +8,6 @@ typically already be installed (python for example).
     git clone https://github.com/gberl001/coffee_monitor_site.git
 ### Database setup
 You will need MySQL or MariaDB installed
-
-Create the schema for the website
-
-    CREATE SCHEMA `fab_coffee_scale` DEFAULT CHARACTER SET utf8mb4 ;
     
 Create the schema for the data itself
         
@@ -24,8 +20,8 @@ Execute the following commands to create a user for the site to access data
     FLUSH PRIVILEGES;
     
 ### Python dependencies
-#### Install Flask Appbuilder
-    pip3 install flask-appbuilder
+#### Install SQLAlchemy
+    pip3 install sqlalchemy
 #### Install Mysql Client for SQLAlchemy
     pip3 install mysqlclient
 I couldn't get this to work on Windows because it needed me to install
@@ -34,13 +30,8 @@ from https://www.lfd.uci.edu/~gohlke/pythonlibs/#mysqlclient
 
     pip3 install <path to wheel>
 
-## Create a site admin user
+## Create the schema tables
 
-    flask fab create-admin
-Go ahead with the defaults and just add whatever password you want for your
-admin user on the website.
-
-## Run the server
-
-    $ flask run --port 8080
+    cd app
+    python3 CreateDB.py
 

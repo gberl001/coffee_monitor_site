@@ -1,11 +1,13 @@
 from datetime import datetime
 
-from flask_appbuilder import Model
 from sqlalchemy import Column, Integer, String, DateTime, DECIMAL, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
+Base = declarative_base()
 
-class WeightReading(Model):
+
+class WeightReading(Base):
     __tablename__ = 'weight_reading'
     __bind_key__ = 'coffee_scale'
 
@@ -21,7 +23,7 @@ class WeightReading(Model):
             self.datetime, self.value)
 
 
-class Event(Model):
+class Event(Base):
     __tablename__ = 'event'
     __bind_key__ = 'coffee_scale'
 
@@ -41,7 +43,7 @@ class Event(Model):
         return self.name.encode("utf8")
 
 
-class ScaleOffsetRecording(Model):
+class ScaleOffsetRecording(Base):
     __tablename__ = 'scale_offset_recording'
     __bind_key__ = 'coffee_scale'
 
@@ -57,7 +59,7 @@ class ScaleOffsetRecording(Model):
             self.datetime, self.value)
 
 
-class DetectedEvent(Model):
+class DetectedEvent(Base):
     __tablename__ = 'detected_event'
     __bind_key__ = 'coffee_scale'
 
