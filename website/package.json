@@ -1,0 +1,26 @@
+{
+  "name": "dygraph_test",
+  "version": "1.0.0",
+  "description": "Test project for using dygraph graphs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "Geoff Berl",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "latest",
+    "d3": "^5.15.0",
+    "dygraphs": "^2.1.0",
+    "ejs": "^3.0.1",
+    "express": "^4.17.1",
+    "express-handlebars": "^3.1.0",
+    "js": "^0.1.0",
+    "json2csv": "^4.5.4",
+    "mysql": "^2.18.1"
+  },
+  "devDependencies": {
+    "cors": "^2.8.5"
+  }
+}
