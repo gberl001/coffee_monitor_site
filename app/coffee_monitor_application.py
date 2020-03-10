@@ -1,7 +1,9 @@
+import logging
 import math
 import subprocess
 import sys
 import time
+
 import requests
 
 sys.path.append('/home/pi/repos/python/coffee_monitor_site/app/lib')
@@ -13,6 +15,7 @@ from lib.lcddriver import lcd as lcddriver
 from models import WeightReading, ScaleOffsetRecording
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from datetime import datetime
 
 # Config
 GRAMS_PER_OZ = 28.35
@@ -38,17 +41,19 @@ lastBrewTime = 0
 latestRecordedWeight = 0.0
 ipCommand = "hostname -I | cut -d\' \' -f1"
 ipAddress = ""
+logging.basicConfig(filename='application.log', level=logging.INFO)
+logging.info(str(datetime.utcnow()) + ": " + "Starting notifier service at ")
 
 
 def setup():
     global dbSession, ipAddress
 
     # LCD Stuff
-    print("Setting up LCD...")
+    logging.debug(str(datetime.utcnow()) + ": " + "Setting up LCD...")
     printToLCD("Please Wait...")
 
     # Scale Stuff
-    print("Setting up scale...")
+    logging.debug(str(datetime.utcnow()) + ": " + "Setting up scale...")
     scale.set_reading_format("MSB", "MSB")
     scale.set_reference_unit(21)
     scale.reset()
@@ -56,7 +61,7 @@ def setup():
     scale.tare()           # Reset the scale to 0
 
     # Database Stuff
-    print("Setting up database...")
+    logging.debug(str(datetime.utcnow()) + ": " + "Setting up database...")
     if PERSIST_TO_DB:
         Base = declarative_base()
         engine = db.create_engine('mysql+mysqldb://adminuser:adminPa$$word1!@localhost/coffee_scale')
@@ -73,16 +78,16 @@ def setup():
         dbSession.commit()
 
     # Setup the scale
-    print("Initializing Coffee Monitor...")
+    logging.info(str(datetime.utcnow()) + ": " + "Initializing Coffee Monitor...")
     initScale()
     GPIO.setup(EVENT_PIN, GPIO.OUT)
 
 
 def cleanAndExit():
-    print("Cleaning...")
+    logging.info(str(datetime.utcnow()) + ": " + "Cleaning up...")
     GPIO.cleanup()
 
-    print("Bye!")
+    logging.info("Goodbye")
     sys.exit()
 
 
@@ -227,8 +232,7 @@ def getScaleReading():
             dbSession.add(reading)
             dbSession.commit()
 
-    if SERIAL_DEBUG > 0:
-        print("Reading is " + str(round(secondReading, 2)))
+    logging.debug(str(datetime.utcnow()) + ": " + "Reading is " + str(round(secondReading, 2)))
 
     # If the scale isn't empty, record the last weight
     if not scaleIsEmpty(secondReading):
@@ -262,7 +266,8 @@ def pingSlack():
 
     response = requests.post(url, json=message, headers={"Content-Type": "application/json"})
 
-    print("Slack Message Sent: " + str(response.status_code))
+    logging.debug(str(datetime.utcnow()) + ": " + "Slack Message Sent: " + str(response.status_code))
+
 
 def main():
     global ipCommand, ipAddress
@@ -279,16 +284,13 @@ def main():
 
             # Determine the state
             if scaleIsEmpty(reading):
-                if SERIAL_DEBUG > 0:
-                    print("STATE: Scale is Empty")
+                logging.debug(str(datetime.utcnow()) + ": " + "STATE: Scale is Empty")
                 handleEmptyScale()
             elif carafeIsEmpty(reading):
-                if SERIAL_DEBUG > 0:
-                    print("STATE: Carafe is Empty")
+                logging.debug(str(datetime.utcnow()) + ": " + "STATE: Carafe is Empty")
                 handleCarafeEmpty()
             elif not (carafeIsEmpty(reading)):
-                if SERIAL_DEBUG > 0:
-                    print("STATE: Carafe is NOT Empty")
+                logging.debug(str(datetime.utcnow()) + ": " + "STATE: Carafe is NOT Empty")
                 handleCarafeNotEmpty(reading)
 
             # Take some time between refreshes
