@@ -13,7 +13,6 @@ import sqlalchemy as db
 from lib.ads1232 import ADS1232
 from lib.lcddriver import lcd as lcddriver
 from models import WeightReading, ScaleOffsetRecording
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 
@@ -28,31 +27,34 @@ EMPTY_SCALE_THRESHOLD = 10          # Assume the scale is empty at 10 ounces
 MINUTES_IN_HOUR = 60            # 60 Minutes in an hour
 MILLIS_IN_MINUTE = 60000         # 60000 ms in a minute
 EVENT_PIN = 4             # The pin that will send out an event notification
-SERIAL_DEBUG = 0             # Set to 1 to have statements printed to the monitor
 PERSIST_TO_DB = True         # Set to True to persist readings to database
-
-# Create objects
-scale = ADS1232(5, 6, 21)
-lcd = lcddriver()
-dbSession = None
 
 # Global variables
 lastBrewTime = 0
 latestRecordedWeight = 0.0
 ipCommand = "hostname -I | cut -d\' \' -f1"
-ipAddress = ""
-logging.basicConfig(filename='application.log', level=logging.INFO)
+logging.basicConfig(filename='/home/pi/repos/python/coffee_monitor_site/app/application.log', level=logging.INFO)
+isLCD = True
+
+# Create objects
+scale = ADS1232(5, 6, 21)
+try:
+    lcd = lcddriver()
+except OSError:
+    logging.info(str(datetime.now()) + ": " + "Failed to initialize LCD")
+    isLCD = False
+dbSession = None
 
 
 def setup():
-    global dbSession, ipAddress
+    global dbSession
 
     # LCD Stuff
-    logging.debug(str(datetime.utcnow()) + ": " + "Setting up LCD...")
+    logging.debug(str(datetime.now()) + ": " + "Setting up LCD...")
     printToLCD("Please Wait...")
 
     # Scale Stuff
-    logging.debug(str(datetime.utcnow()) + ": " + "Setting up scale...")
+    logging.debug(str(datetime.now()) + ": " + "Setting up scale...")
     scale.set_reading_format("MSB", "MSB")
     scale.set_reference_unit(21)
     scale.reset()
@@ -60,9 +62,8 @@ def setup():
     scale.tare()           # Reset the scale to 0
 
     # Database Stuff
-    logging.debug(str(datetime.utcnow()) + ": " + "Setting up database...")
+    logging.debug(str(datetime.now()) + ": " + "Setting up database...")
     if PERSIST_TO_DB:
-        Base = declarative_base()
         engine = db.create_engine('mysql+mysqldb://adminuser:adminPa$$word1!@localhost/coffee_scale')
         session = sessionmaker()
         session.configure(bind=engine)
@@ -76,13 +77,13 @@ def setup():
         dbSession.commit()
 
     # Setup the scale
-    logging.info(str(datetime.utcnow()) + ": " + "Initializing Coffee Monitor...")
+    logging.info(str(datetime.now()) + ": " + "Initializing Coffee Monitor...")
     initScale()
     GPIO.setup(EVENT_PIN, GPIO.OUT)
 
 
 def cleanAndExit():
-    logging.info(str(datetime.utcnow()) + ": " + "Cleaning up...")
+    logging.info(str(datetime.now()) + ": " + "Cleaning up...")
     GPIO.cleanup()
 
     logging.info("Goodbye")
@@ -90,7 +91,6 @@ def cleanAndExit():
 
 
 def initScale():
-    global ipAddress
     # Ready
     printToLCD("Ready", "Add container")
 
@@ -125,18 +125,16 @@ def getAgeString():
 
 
 def handleCarafeEmpty():
-    global ipAddress
     printToLCD("Empty Container")
 
 
 def handleCarafeNotEmpty(reading):
-    global ipAddress
     # Display the age and cups remaining
     printToLCD("Age: " + str(getAgeString()), "Cups Left: " + str(round(getCupsRemaining(reading), 2)))
 
 
 def handleEmptyScale():
-    global latestRecordedWeight, ipAddress
+    global latestRecordedWeight
 
     # Either there is a new brew coming or someone simply lifted the carafe temporarily, record the previous weight
     previousWeight = latestRecordedWeight
@@ -200,7 +198,7 @@ def getCupsRemaining(reading):
 
 
 def getScaleReading():
-    global latestRecordedWeight, s
+    global latestRecordedWeight
     # Keep taking readings one second apart until they are within 1 ounce of each other (indicating stability)
     # This should ensure a reading isn't taken while weight is added or removed from the scale
     firstReading = 0
@@ -228,7 +226,7 @@ def getScaleReading():
             dbSession.add(reading)
             dbSession.commit()
 
-    logging.debug(str(datetime.utcnow()) + ": " + "Reading is " + str(round(secondReading, 2)))
+    logging.debug(str(datetime.now()) + ": " + "Reading is " + str(round(secondReading, 2)))
 
     # If the scale isn't empty, record the last weight
     if not scaleIsEmpty(secondReading):
@@ -239,6 +237,10 @@ def getScaleReading():
 
 def printToLCD(line1="", line2="", line3="", line4="", clearScreen=True):
     global ipCommand
+
+    # Check if the LCD is initialized
+    if not isLCD:
+        return
 
     if clearScreen:
         lcd.lcd_clear()
@@ -262,11 +264,11 @@ def pingSlack():
 
     response = requests.post(url, json=message, headers={"Content-Type": "application/json"})
 
-    logging.debug(str(datetime.utcnow()) + ": " + "Slack Message Sent: " + str(response.status_code))
+    logging.debug(str(datetime.now()) + ": " + "Slack Message Sent: " + str(response.status_code))
 
 
 def main():
-    global ipCommand, ipAddress
+    global ipCommand
 
     try:
         setup()
@@ -275,18 +277,15 @@ def main():
             # Take a reading
             reading = getScaleReading()
 
-            # Check for an IP address (for debugging)
-            ipAddress = subprocess.check_output(ipCommand, shell=True).decode("utf-8").strip()
-
             # Determine the state
             if scaleIsEmpty(reading):
-                logging.debug(str(datetime.utcnow()) + ": " + "STATE: Scale is Empty")
+                logging.debug(str(datetime.now()) + ": " + "STATE: Scale is Empty")
                 handleEmptyScale()
             elif carafeIsEmpty(reading):
-                logging.debug(str(datetime.utcnow()) + ": " + "STATE: Carafe is Empty")
+                logging.debug(str(datetime.now()) + ": " + "STATE: Carafe is Empty")
                 handleCarafeEmpty()
             elif not (carafeIsEmpty(reading)):
-                logging.debug(str(datetime.utcnow()) + ": " + "STATE: Carafe is NOT Empty")
+                logging.debug(str(datetime.now()) + ": " + "STATE: Carafe is NOT Empty")
                 handleCarafeNotEmpty(reading)
 
             # Take some time between refreshes
