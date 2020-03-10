@@ -42,7 +42,6 @@ latestRecordedWeight = 0.0
 ipCommand = "hostname -I | cut -d\' \' -f1"
 ipAddress = ""
 logging.basicConfig(filename='application.log', level=logging.INFO)
-logging.info(str(datetime.utcnow()) + ": " + "Starting notifier service at ")
 
 
 def setup():
@@ -143,9 +142,7 @@ def handleEmptyScale():
     previousWeight = latestRecordedWeight
 
     # While the scale is empty, display that we're waiting for more coffee
-    lcd.lcd_clear()
-    lcd.lcd_display_string("Waiting for", 1)
-    lcd.lcd_display_string("next brew", 2)
+    printToLCD("Waiting for", "next brew")
 
     # NOTE: By using scaleIsEmpty, technically any weight can be added to leave this state
     #       which may be undesirable but for now I like it this way. In the future I may
