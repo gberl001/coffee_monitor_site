@@ -1,7 +1,10 @@
+import logging
 import math
 import subprocess
 import sys
 import time
+
+import requests
 
 sys.path.append('/home/pi/repos/python/coffee_monitor_site/app/lib')
 
@@ -12,6 +15,7 @@ from lib.lcddriver import lcd as lcddriver
 from models import WeightReading, ScaleOffsetRecording
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from datetime import datetime
 
 # Config
 GRAMS_PER_OZ = 28.35
@@ -25,7 +29,7 @@ EMPTY_SCALE_THRESHOLD = 10          # Assume the scale is empty at 10 ounces
 MINUTES_IN_HOUR = 60            # 60 Minutes in an hour
 MILLIS_IN_MINUTE = 60000         # 60000 ms in a minute
 EVENT_PIN = 4             # The pin that will send out an event notification
-SERIAL_DEBUG = 1             # Set to 1 to have statements printed to the monitor
+SERIAL_DEBUG = 0             # Set to 1 to have statements printed to the monitor
 PERSIST_TO_DB = True         # Set to True to persist readings to database
 
 # Create objects
@@ -39,17 +43,18 @@ latestRecordedWeight = 0.0
 ipCommand = "hostname -I | cut -d\' \' -f1"
 ipAddress = ""
 fullBrew = True
+logging.basicConfig(filename='application.log', level=logging.INFO)
 
 
 def setup():
     global dbSession, ipAddress
 
     # LCD Stuff
-    print("Setting up LCD...")
+    logging.debug(str(datetime.utcnow()) + ": " + "Setting up LCD...")
     printToLCD("Please Wait...")
 
     # Scale Stuff
-    print("Setting up scale...")
+    logging.debug(str(datetime.utcnow()) + ": " + "Setting up scale...")
     scale.set_reading_format("MSB", "MSB")
     scale.set_reference_unit(21)
     scale.reset()
@@ -57,13 +62,12 @@ def setup():
     scale.tare()           # Reset the scale to 0
 
     # Database Stuff
-    print("Setting up database...")
+    logging.debug(str(datetime.utcnow()) + ": " + "Setting up database...")
     if PERSIST_TO_DB:
         Base = declarative_base()
         engine = db.create_engine('mysql+mysqldb://adminuser:adminPa$$word1!@localhost/coffee_scale')
         session = sessionmaker()
         session.configure(bind=engine)
-        Base.metadata.create_all(engine)
         dbSession = session()
 
     # Log the offset reading
@@ -74,16 +78,16 @@ def setup():
         dbSession.commit()
 
     # Setup the scale
-    print("Initializing Coffee Monitor...")
+    logging.info(str(datetime.utcnow()) + ": " + "Initializing Coffee Monitor...")
     initScale()
     GPIO.setup(EVENT_PIN, GPIO.OUT)
 
 
 def cleanAndExit():
-    print("Cleaning...")
+    logging.info(str(datetime.utcnow()) + ": " + "Cleaning up...")
     GPIO.cleanup()
 
-    print("Bye!")
+    logging.info("Goodbye")
     sys.exit()
 
 
@@ -141,9 +145,7 @@ def handleEmptyScale():
     previousWeight = latestRecordedWeight
 
     # While the scale is empty, display that we're waiting for more coffee
-    lcd.lcd_clear()
-    lcd.lcd_display_string("Waiting for", 1)
-    lcd.lcd_display_string("next brew", 2)
+    printToLCD("Waiting for", "next brew")
 
     # NOTE: By using scaleIsEmpty, technically any weight can be added to leave this state
     #       which may be undesirable but for now I like it this way. In the future I may
@@ -179,10 +181,8 @@ def handleFreshBrew():
     # Update the last brew time
     lastBrewTime = millis()
 
-    # Notify the WiFi module driving the event pin HIGH for half a second
-    GPIO.output(EVENT_PIN, True)
-    time.sleep(0.5)
-    GPIO.output(EVENT_PIN, False)
+    # Notify Slack
+    pingSlack()
 
 
 # *******************************************************************************************************
@@ -218,6 +218,12 @@ def getScaleReading():
         # This will just update the IP address
         printToLCD("", "", "", "", False)
 
+        # Added this in the hopes that it fixes the random bad readings. The problem
+        # is that occasionally I will see the scale just go haywire and from that
+        # point forward, the readings are useless. I'm assuming it's because somehow
+        # the bit triggers are off so I'm hoping resetting the device avoids this.
+        scale.reset()
+
         firstReading = abs(scale.get_weight(NUM_READINGS)) / GRAMS_PER_OZ
         # Delay between readings
         time.sleep(1.0)
@@ -231,8 +237,7 @@ def getScaleReading():
             dbSession.add(reading)
             dbSession.commit()
 
-    if SERIAL_DEBUG > 0:
-        print("Reading is " + str(round(secondReading, 2)))
+    logging.debug(str(datetime.utcnow()) + ": " + "Reading is " + str(round(secondReading, 2)))
 
     # If the scale isn't empty, record the last weight
     if not scaleIsEmpty(secondReading):
@@ -260,6 +265,15 @@ def printToLCD(line1="", line2="", line3="", line4="", clearScreen=True):
         lcd.lcd_display_string(line4, 4)
 
 
+def pingSlack():
+    url = "https://hooks.slack.com/services/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"
+    message = "{'text': 'There is fresh coffee! :coffee::coffee:'}"
+
+    response = requests.post(url, json=message, headers={"Content-Type": "application/json"})
+
+    logging.debug(str(datetime.utcnow()) + ": " + "Slack Message Sent: " + str(response.status_code))
+
+
 def main():
     global ipCommand, ipAddress
 
@@ -275,16 +289,13 @@ def main():
 
             # Determine the state
             if scaleIsEmpty(reading):
-                if SERIAL_DEBUG > 0:
-                    print("STATE: Scale is Empty")
+                logging.debug(str(datetime.utcnow()) + ": " + "STATE: Scale is Empty")
                 handleEmptyScale()
             elif carafeIsEmpty(reading):
-                if SERIAL_DEBUG > 0:
-                    print("STATE: Carafe is Empty")
+                logging.debug(str(datetime.utcnow()) + ": " + "STATE: Carafe is Empty")
                 handleCarafeEmpty()
             elif not (carafeIsEmpty(reading)):
-                if SERIAL_DEBUG > 0:
-                    print("STATE: Carafe is NOT Empty")
+                logging.debug(str(datetime.utcnow()) + ": " + "STATE: Carafe is NOT Empty")
                 handleCarafeNotEmpty(reading)
 
             # Take some time between refreshes
