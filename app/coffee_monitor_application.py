@@ -62,7 +62,6 @@ def setup():
         engine = db.create_engine('mysql+mysqldb://adminuser:adminPa$$word1!@localhost/coffee_scale')
         session = sessionmaker()
         session.configure(bind=engine)
-        Base.metadata.create_all(engine)
         dbSession = session()
 
     # Log the offset reading
