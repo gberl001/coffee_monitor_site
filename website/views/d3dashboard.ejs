@@ -2,9 +2,9 @@
 
 <body>
 <!--The background div-->
-<div class="bg container-fluid">
+<div class="bg container-fluid" id="daily_chart">
     <!-- This div holds the graph -->
-    <div id="daily_chart"></div>
+<!--    <div id="daily_chart"></div>-->
 </div>
 <script>
     // import * as d3 from "d3";
@@ -13,6 +13,7 @@
 
     // Set the dimensions of the canvas / graph
     var divWidth = document.getElementById("daily_chart").offsetWidth
+    // Can use window.innerWidth instead of div width
     // console.log("WxH is " + divWidth + "x" + divHeight)
     var margin = {top: 30, right: 20, bottom: 30, left: 20},
         width = divWidth - margin.left - margin.right,
@@ -76,7 +77,7 @@
                 return d.date;
             }))
             .range([0, width]);
-        xAxis = svg.append("g")
+        var xAxis = svg.append("g")
             .attr("transform", "translate(0," + height + ")")
             .call(d3.axisBottom(x));
 
@@ -86,17 +87,17 @@
                 return +d.value;
             })])
             .range([height, 0]);
-        yAxis = svg.append("g")
+        var yAxis = svg.append("g")
             .call(d3.axisLeft(y));
 
-        // Add a clipPath: everything out of this area won't be drawn.
-        var clip = svg.append("defs").append("svg:clipPath")
-            .attr("id", "clip")
-            .append("svg:rect")
-            .attr("width", width)
-            .attr("height", height)
-            .attr("x", 0)
-            .attr("y", 0);
+        // // Add a clipPath: everything out of this area won't be drawn.
+        // var clip = svg.append("defs").append("svg:clipPath")
+        //     .attr("id", "clip")
+        //     .append("svg:rect")
+        //     .attr("width", width)
+        //     .attr("height", height)
+        //     .attr("x", 0)
+        //     .attr("y", 0);
 
         // Add brushing
         var brush = d3.brushX()                   // Add the brush feature using the d3.brush function
