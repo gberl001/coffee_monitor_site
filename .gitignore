@@ -2,4 +2,4 @@
 __pycache__
 *.log
 node_modules
-lib/readings_test.csv
+/website/lib/readings_test.csv
