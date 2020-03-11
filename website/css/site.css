@@ -1,6 +1,3 @@
-body {
-    font: 12px Arial;
-}
 
 path {
     stroke: steelblue;
@@ -24,4 +21,21 @@ path {
 circle {
     cursor: pointer;
     fill: steelblue;
+}
+
+body, html {
+    height: 100%;
+    font: 14px "Helvetica Neue";
+}
+.bg {
+    /* The image used */
+    background-image: url("../lib/images/coffee-and-breakroom.jpg");
+
+    /* Full height */
+    height: 100%;
+
+    /* Center and scale the image nicely */
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
 }

@@ -1,16 +1,21 @@
 <%- include('partials/header.ejs') %>
 
 <body>
-<!-- This div holds the graph -->
-<div id="my_dataviz"></div>
+<!--The background div-->
+<div class="bg container-fluid">
+    <!-- This div holds the graph -->
+    <div id="daily_chart"></div>
+</div>
 <script>
     // import * as d3 from "d3";
 
     var label = d3.select(".label");
 
     // Set the dimensions of the canvas / graph
-    var margin = {top: 30, right: 20, bottom: 30, left: 50},
-        width = 1000 - margin.left - margin.right,
+    var divWidth = document.getElementById("daily_chart").offsetWidth
+    // console.log("WxH is " + divWidth + "x" + divHeight)
+    var margin = {top: 30, right: 20, bottom: 30, left: 20},
+        width = divWidth - margin.left - margin.right,
         height = 500 - margin.top - margin.bottom;
 
     // Parse the date / time
@@ -38,15 +43,23 @@
 
     // Adds the svg canvas
     // append the svg object to the body of the page
-    var svg = d3.select("#my_dataviz")
+    var svg = d3.select("#daily_chart")
         .append("svg")
+        // .attr("preserveAspectRatio", "xMinYMin meet")
+        // .attr("viewBox", "0 0 800 500")
         .attr("width", width + margin.left + margin.right)
         .attr("height", height + margin.top + margin.bottom)
         .append("g")
         .attr("transform",
             "translate(" + margin.left + "," + margin.top + ")");
 
-    // var url = 'http://localhost:3000/readings';
+    // Make the background color
+    svg.append("rect")
+        .attr("width", "100%")
+        .attr("height", "100%")
+        .attr("opacity", 0.7)
+        .attr("fill", "white");
+
     // Get the data
     d3.csv("lib/readings_test.csv", function (error, data) {
 
