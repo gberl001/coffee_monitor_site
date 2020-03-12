@@ -32,7 +32,7 @@ PERSIST_TO_DB = True            # Set to True to persist readings to database
 lastBrewTime = 0
 latestRecordedWeight = 0.0
 ipCommand = "hostname -I | cut -d\' \' -f1"
-logging.basicConfig(filename='/home/pi/repos/python/coffee_monitor_site/app/application.log', level=logging.INFO)
+logging.basicConfig(filename='/home/pi/repos/python/coffee_monitor_site/app/application.log', level=logging.ERROR)
 isLCD = True
 
 # Create objects
@@ -258,11 +258,26 @@ def printToLCD(line1="", line2="", line3="", line4="", clearScreen=True):
 
 def pingSlack():
     url = "https://hooks.slack.com/services/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"
-    message = "{'text': 'There is fresh coffee! :coffee::coffee:'}"
+    message = {'text': 'There is fresh coffee! :coffee::coffee:'}
+    response = 0
 
-    response = requests.post(url, json=message, headers={"Content-Type": "application/json"})
+    try:
+        response = requests.post(url, json=message, headers={"Content-Type": "application/json"})
+    except requests.exceptions.HTTPError as e:
+        logging.error(str(datetime.now()) + ": " + "Slack ping failed", e)
+    except requests.exceptions.Timeout as e:
+        logging.error(str(datetime.now()) + ": " + "Slack ping failed", e)
+    except requests.exceptions.TooManyRedirects as e:
+        logging.error(str(datetime.now()) + ": " + "Slack ping failed", e)
+    except requests.exceptions.RequestException as e:
+        logging.error(str(datetime.now()) + ": " + "Slack ping failed", e)
+    except:
+        logging.error(str(datetime.now()) + ": " + "Slack ping failed for unhandled exception")
 
-    logging.debug(str(datetime.now()) + ": " + "Slack Message Sent: " + str(response.status_code))
+    if response.status_code != 200:
+        logging.error(str(datetime.now()) + ": " + "Slack Message Failed, HTTP code: " + str(response.status_code))
+    else:
+        logging.debug(str(datetime.now()) + ": " + "Slack Message successfully sent")
 
 
 def main():
