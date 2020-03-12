@@ -42,7 +42,9 @@ app.get('/', getReadings);
 app.get('/static', (request, response, next) => {
     response.sendFile(__dirname + '/views/static_example.html')
 });
-
+app.get('/static2', (request, response, next) => {
+    response.sendFile(__dirname + '/views/static_example2.html')
+});
 
 // Startup the server
 app.listen(port, (err) => {

@@ -33,13 +33,14 @@
 </body>
 
 <!-- Load in the d3 library -->
-<script src="https://d3js.org/d3.v5.min.js"></script>
+<script src="js/d3.min.js"></script>
 <script>
 
     // 2. Use the margin convention practice
     var margin = {top: 50, right: 50, bottom: 50, left: 50}
         , width = window.innerWidth - margin.left - margin.right // Use the window's width
-        , height = window.innerHeight - margin.top - margin.bottom; // Use the window's height
+        , height = window.innerHeight - margin.top - margin.bottom // Use the window's height
+        , radius = 4;
 
     // The number of datapoints
     var n = 21;
@@ -53,6 +54,12 @@
     var yScale = d3.scaleLinear()
         .domain([0, 1]) // input
         .range([height, 0]); // output
+
+    var circleAttrs = {
+        cx: function(d) { return xScale(d.x); },
+        cy: function(d) { return yScale(d.y); },
+        r: radius
+    };
 
     // 7. d3's line generator
     var line = d3.line()
@@ -95,11 +102,39 @@
         .attr("cx", function(d, i) { return xScale(i) })
         .attr("cy", function(d) { return yScale(d.y) })
         .attr("r", 5)
-        .on("mouseover", function(a, b, c) {
-            console.log(a)
-            this.attr('class', 'focus')
+        .on("mouseover", handleMouseOver())
+        .on("mouseout", handleMouseOut());
+
+    // Create Event Handlers for mouse
+    function handleMouseOver(d, i) {  // Add interactivity
+
+        // Use D3 to select element, change color and size
+        d3.select(this).attr({
+            fill: "orange",
+            r: radius * 2
+        });
+
+        // Specify where to put label of text
+        svg.append("text").attr({
+            id: "t" + d.x + "-" + d.y + "-" + i,  // Create an id for text so we can select it later for removing on mouseout
+            x: function() { return xScale(d.x) - 30; },
+            y: function() { return yScale(d.y) - 15; }
         })
-        .on("mouseout", function() {  })
+            .text(function() {
+                return [d.x, d.y];  // Value of the text
+            });
+    }
+
+    function handleMouseOut(d, i) {
+        // Use D3 to select element, change color back to normal
+        d3.select(this).attr({
+            fill: "black",
+            r: radius
+        });
+
+        // Select text by id and then remove
+        d3.select("#t" + d.x + "-" + d.y + "-" + i).remove();  // Remove text location
+    }
     //       .on("mousemove", mousemove);
 
     //   var focus = svg.append("g")
