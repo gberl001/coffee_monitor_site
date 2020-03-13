@@ -1,8 +1,8 @@
 {
-  "name": "dygraph_test",
+  "name": "coffee-monitor-site",
   "version": "1.0.0",
-  "description": "Test project for using dygraph graphs",
-  "main": "index.js",
+  "description": "Simple dashboard website for the coffee monitor application",
+  "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -12,7 +12,6 @@
   "dependencies": {
     "body-parser": "latest",
     "d3": "^5.15.0",
-    "dygraphs": "^2.1.0",
     "ejs": "^3.0.1",
     "express": "^4.17.1",
     "express-handlebars": "^3.1.0",
