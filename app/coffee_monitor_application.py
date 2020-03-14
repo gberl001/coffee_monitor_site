@@ -14,23 +14,21 @@ import sqlalchemy as db
 from lib.ads1232 import ADS1232
 from lib.lcddriver import lcd as lcddriver
 from models import WeightReading, ScaleOffsetRecording, Event, DetectedEvent
-from sqlalchemy.ext.declarative import declarative_base
+from models import WeightReading, ScaleOffsetRecording
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 
 # Config
-GRAMS_PER_OZ = 28.35
-NUM_READINGS = 21   # Should be an odd number
-FULL_CUP = 10          # A full cup is about 10 ounces
-SPLATTER_POINT = 73          # At this point you'll get splatter, and empty carafe is actually 69.25oz
-EMPTY_CARAFE = 69          # An empty carafe is about 69.25oz
-FULL_CARAFE = 150         # A full carafe is about 150oz
-EMPTY_SCALE_THRESHOLD = 10          # Assume the scale is empty at 10 ounces
+GRAMS_PER_OZ = 28.35            # Grams to Oz conversion factor
+NUM_READINGS = 21               # Number of readings to take on the scale, we then take the median reading
+FULL_CUP = 10                   # A full cup is about 10 ounces
+SPLATTER_POINT = 73             # At this point you'll get splatter, and empty carafe is actually 69.25oz
+EMPTY_CARAFE = 69               # An empty carafe is about 69.25oz
+FULL_CARAFE = 150               # A full carafe is about 150oz
+EMPTY_SCALE_THRESHOLD = 10      # Assume the scale is empty at 10 ounces or less
 MINUTES_IN_HOUR = 60            # 60 Minutes in an hour
-MILLIS_IN_MINUTE = 60000         # 60000 ms in a minute
-EVENT_PIN = 4             # The pin that will send out an event notification
-SERIAL_DEBUG = 0             # Set to 1 to have statements printed to the monitor
-PERSIST_TO_DB = True         # Set to True to persist readings to database
+MILLIS_IN_MINUTE = 60000        # 60000 ms in a minute
+PERSIST_TO_DB = True            # Set to True to persist readings to database
 
 
 class State(enum.Enum):
@@ -40,9 +38,20 @@ class State(enum.Enum):
     freshBrew = 4
 
 
+# Global variables
+lastBrewTime = 0
+latestRecordedWeight = 0.0
+ipCommand = "hostname -I | cut -d\' \' -f1"
+logging.basicConfig(filename='/home/pi/repos/python/coffee_monitor_site/app/application.log', level=logging.ERROR)
+isLCD = True
+
 # Create objects
 scale = ADS1232(5, 6, 21)
-lcd = lcddriver()
+try:
+    lcd = lcddriver()
+except OSError:
+    logging.info(str(datetime.now()) + ": " + "Failed to initialize LCD")
+    isLCD = False
 dbSession = None
 
 # Global variables
@@ -58,11 +67,11 @@ def setup():
     global dbSession
 
     # LCD Stuff
-    logging.debug(str(datetime.utcnow()) + ": " + "Setting up LCD...")
+    logging.debug(str(datetime.now()) + ": " + "Setting up LCD...")
     printToLCD("Please Wait...")
 
     # Scale Stuff
-    logging.debug(str(datetime.utcnow()) + ": " + "Setting up scale...")
+    logging.debug(str(datetime.now()) + ": " + "Setting up scale...")
     scale.set_reading_format("MSB", "MSB")
     scale.set_reference_unit(21)
     scale.reset()
@@ -70,9 +79,8 @@ def setup():
     scale.tare()           # Reset the scale to 0
 
     # Database Stuff
-    logging.debug(str(datetime.utcnow()) + ": " + "Setting up database...")
+    logging.debug(str(datetime.now()) + ": " + "Setting up database...")
     if PERSIST_TO_DB:
-        Base = declarative_base()
         engine = db.create_engine('mysql+mysqldb://adminuser:adminPa$$word1!@localhost/coffee_scale')
         session = sessionmaker()
         session.configure(bind=engine)
@@ -86,13 +94,12 @@ def setup():
         dbSession.commit()
 
     # Setup the scale
-    logging.info(str(datetime.utcnow()) + ": " + "Initializing Coffee Monitor...")
+    logging.info(str(datetime.now()) + ": " + "Initializing Coffee Monitor...")
     initScale()
-    GPIO.setup(EVENT_PIN, GPIO.OUT)
 
 
 def cleanAndExit():
-    logging.info(str(datetime.utcnow()) + ": " + "Cleaning up...")
+    logging.info(str(datetime.now()) + ": " + "Cleaning up...")
     GPIO.cleanup()
 
     logging.info("Goodbye")
@@ -278,7 +285,7 @@ def getScaleReading():
             dbSession.add(reading)
             dbSession.commit()
 
-    logging.debug(str(datetime.utcnow()) + ": " + "Reading is " + str(round(secondReading, 2)))
+    logging.debug(str(datetime.now()) + ": " + "Reading is " + str(round(secondReading, 2)))
 
     # If the scale isn't empty, record the last weight
     if not scaleIsEmpty(secondReading):
@@ -289,6 +296,10 @@ def getScaleReading():
 
 def printToLCD(line1="", line2="", line3="", line4="", clearScreen=True):
     global ipCommand
+
+    # Check if the LCD is initialized
+    if not isLCD:
+        return
 
     if clearScreen:
         lcd.lcd_clear()
@@ -308,11 +319,26 @@ def printToLCD(line1="", line2="", line3="", line4="", clearScreen=True):
 
 def pingSlack():
     url = "https://hooks.slack.com/services/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"
-    message = "{'text': 'There is fresh coffee! :coffee::coffee:'}"
+    message = {'text': 'There is fresh coffee! :coffee::coffee:'}
+    response = 0
 
-    response = requests.post(url, json=message, headers={"Content-Type": "application/json"})
+    try:
+        response = requests.post(url, json=message, headers={"Content-Type": "application/json"})
+    except requests.exceptions.HTTPError as e:
+        logging.error(str(datetime.now()) + ": " + "Slack ping failed", e)
+    except requests.exceptions.Timeout as e:
+        logging.error(str(datetime.now()) + ": " + "Slack ping failed", e)
+    except requests.exceptions.TooManyRedirects as e:
+        logging.error(str(datetime.now()) + ": " + "Slack ping failed", e)
+    except requests.exceptions.RequestException as e:
+        logging.error(str(datetime.now()) + ": " + "Slack ping failed", e)
+    except:
+        logging.error(str(datetime.now()) + ": " + "Slack ping failed for unhandled exception")
 
-    logging.debug(str(datetime.utcnow()) + ": " + "Slack Message Sent: " + str(response.status_code))
+    if response.status_code != 200:
+        logging.error(str(datetime.now()) + ": " + "Slack Message Failed, HTTP code: " + str(response.status_code))
+    else:
+        logging.debug(str(datetime.now()) + ": " + "Slack Message successfully sent")
 
 
 def main():
@@ -327,13 +353,13 @@ def main():
 
             # Determine the state
             if scaleIsEmpty(reading):
-                logging.debug(str(datetime.utcnow()) + ": " + "STATE: Scale is Empty")
+                logging.debug(str(datetime.now()) + ": " + "STATE: Scale is Empty")
                 handleEmptyScale()
             elif carafeIsEmpty(reading):
-                logging.debug(str(datetime.utcnow()) + ": " + "STATE: Carafe is Empty")
+                logging.debug(str(datetime.now()) + ": " + "STATE: Carafe is Empty")
                 handleCarafeEmpty()
             elif not (carafeIsEmpty(reading)):
-                logging.debug(str(datetime.utcnow()) + ": " + "STATE: Carafe is NOT Empty")
+                logging.debug(str(datetime.now()) + ": " + "STATE: Carafe is NOT Empty")
                 handleCarafeNotEmpty(reading)
 
             # Take some time between refreshes

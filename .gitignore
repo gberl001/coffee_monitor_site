@@ -1,3 +1,5 @@
 .idea
 __pycache__
 *.log
+node_modules
+/website/lib/readings_test.csv

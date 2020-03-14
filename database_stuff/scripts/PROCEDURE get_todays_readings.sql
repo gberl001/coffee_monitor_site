@@ -1,3 +1,4 @@
+DROP PROCEDURE IF EXISTS get_todays_readings;
 CREATE DEFINER=`adminuser`@`localhost` PROCEDURE `get_todays_readings`(IN startDate DATETIME, IN endDate DATETIME)
 BEGIN
 
@@ -15,7 +16,7 @@ BEGIN
 
     -- Select and join readings with time table
 	SELECT
-		DATE_FORMAT(t3.`minute`, '%Y/%m/%d %h:%i') as `date`, IFNULL(t2.value,0) as `value`
+		DATE_FORMAT(t3.`minute`, '%Y/%m/%d %h:%i %p') as `date`, IFNULL(t2.value,0) as `value`
 	FROM
 		coffee_scale.time_table AS t3
 			LEFT JOIN
