@@ -13,18 +13,13 @@ import RPi.GPIO as GPIO
 import sqlalchemy as db
 from lib.ads1232 import ADS1232
 from lib.lcddriver import lcd as lcddriver
-from models import WeightReading, ScaleOffsetRecording, Event, DetectedEvent
+from models import WeightReading, ScaleOffsetRecording, Event, DetectedEvent, Carafe, Scale
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 
 # Config
 GRAMS_PER_OZ = 28.35            # Grams to Oz conversion factor
 NUM_READINGS = 21               # Number of readings to take on the scale, we then take the median reading
-FULL_CUP = 10                   # A full cup is about 10 ounces
-SPLATTER_POINT = 73             # At this point you'll get splatter, and empty carafe is actually 69.25oz
-EMPTY_CARAFE = 69               # An empty carafe is about 69.25oz
-FULL_CARAFE = 150               # A full carafe is about 150oz
-EMPTY_SCALE_THRESHOLD = 10      # Assume the scale is empty at 10 ounces or less
 MINUTES_IN_HOUR = 60            # 60 Minutes in an hour
 MILLIS_IN_MINUTE = 60000        # 60000 ms in a minute
 PERSIST_TO_DB = True            # Set to True to persist readings to database
@@ -45,7 +40,7 @@ logging.basicConfig(filename='/home/pi/repos/python/coffee_monitor_site/app/appl
 isLCD = True
 
 # Create objects
-scale = ADS1232(5, 6, 21)
+scaleSensor = ADS1232(5, 6, 21)
 try:
     lcd = lcddriver()
 except OSError:
@@ -59,10 +54,12 @@ latestRecordedWeight = 0.0
 ipCommand = "hostname -I | cut -d\' \' -f1"
 currentState = State.emptyCarafe    # Start with non-empty scale so it initially records empty scale
 logging.basicConfig(filename='application.log', level=logging.INFO)
+scale = None
+carafe = None
 
 
 def setup():
-    global dbSession
+    global dbSession, carafe, scale
 
     # LCD Stuff
     logging.debug(str(datetime.now()) + ": " + "Setting up LCD...")
@@ -70,11 +67,11 @@ def setup():
 
     # Scale Stuff
     logging.debug(str(datetime.now()) + ": " + "Setting up scale...")
-    scale.set_reading_format("MSB", "MSB")
-    scale.set_reference_unit(21)
-    scale.reset()
+    scaleSensor.set_reading_format("MSB", "MSB")
+    scaleSensor.set_reference_unit(21)
+    scaleSensor.reset()
     time.sleep(1.0)     # Small delay for settling
-    scale.tare()           # Reset the scale to 0
+    scaleSensor.tare()           # Reset the scale to 0
 
     # Database Stuff
     logging.debug(str(datetime.now()) + ": " + "Setting up database...")
@@ -87,9 +84,13 @@ def setup():
     # Log the offset reading
     if PERSIST_TO_DB:
         reading = ScaleOffsetRecording()
-        reading.value = scale.get_offset()
+        reading.value = scaleSensor.get_offset()
         dbSession.add(reading)
         dbSession.commit()
+
+    # Load the scale and carafe objects
+    carafe = dbSession.query(Carafe).filter(Carafe.name == 'PTC').first()
+    scale = dbSession.query(Scale).filter(Scale.name == 'PTC').first()
 
     # Setup the scale
     logging.info(str(datetime.now()) + ": " + "Initializing Coffee Monitor...")
@@ -164,7 +165,7 @@ def handleCarafeNotEmpty(reading):
 
 
 def handleEmptyScale():
-    global latestRecordedWeight, currentState
+    global latestRecordedWeight, currentState, scale
 
     # Either there is a new brew coming or someone simply lifted the carafe temporarily, record the previous weight
     previousWeight = latestRecordedWeight
@@ -199,7 +200,7 @@ def handleEmptyScale():
         time.sleep(2.0)
 
     # Now that the scale isn't empty, determine if more coffee was added
-    if latestRecordedWeight > previousWeight + FULL_CUP:
+    if latestRecordedWeight > previousWeight + scale.cup_weight:
         # If the new wight is at least one more cup of coffee more than the old, assume a new brew
         handleFreshBrew()
 
@@ -235,16 +236,19 @@ def millis():
 
 
 def scaleIsEmpty(reading):
-    return reading < EMPTY_SCALE_THRESHOLD
+    global scale
+    return reading < scale.empty_scale_threshold
 
 
 def carafeIsEmpty(reading):
+    global carafe
     # If the reading is between empty and where the coffee splatters...
-    return EMPTY_CARAFE <= reading <= SPLATTER_POINT
+    return carafe.empty_weight <= reading <= carafe.splatter_point
 
 
 def getCupsRemaining(reading):
-    return (reading - SPLATTER_POINT) / FULL_CUP
+    global carafe, scale
+    return (reading - carafe.splatter_point) / scale.cup_weight
 
 
 def getScaleReading():
@@ -261,12 +265,12 @@ def getScaleReading():
         # is that occasionally I will see the scale just go haywire and from that
         # point forward, the readings are useless. I'm assuming it's because somehow
         # the bit triggers are off so I'm hoping resetting the device avoids this.
-        scale.reset()
+        scaleSensor.reset()
 
-        firstReading = abs(scale.get_weight(NUM_READINGS)) / GRAMS_PER_OZ
+        firstReading = abs(scaleSensor.get_weight(NUM_READINGS)) / GRAMS_PER_OZ
         # Delay between readings
         time.sleep(1.0)
-        secondReading = abs(scale.get_weight(NUM_READINGS)) / GRAMS_PER_OZ
+        secondReading = abs(scaleSensor.get_weight(NUM_READINGS)) / GRAMS_PER_OZ
 
         if PERSIST_TO_DB:
             # Insert the record into the database
