@@ -32,6 +32,7 @@ module.exports = {
                 "FROM coffee_scale.detected_event as t1 " +
                 "LEFT JOIN coffee_scale.event as t2 " +
                 "ON t1.event_id=t2.id " +
+                "WHERE t2.name='Full Brew'" +
                 "ORDER BY t1.datetime DESC LIMIT 1";
             db.query(query, (err, result) => {
                 if (err) {

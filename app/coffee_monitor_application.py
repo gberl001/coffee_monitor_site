@@ -249,15 +249,15 @@ def carafeIsEmpty(reading):
 
 def getCupsRemaining(reading):
     global carafe, scale
-    return (Decimal(reading) - carafe.splatter_point) / scale.full_cup_weight
+    return (reading - carafe.splatter_point) / scale.full_cup_weight
 
 
 def getScaleReading():
     global latestRecordedWeight
     # Keep taking readings one second apart until they are within 1 ounce of each other (indicating stability)
     # This should ensure a reading isn't taken while weight is added or removed from the scale
-    firstReading = 0
-    secondReading = 10
+    firstReading = 0.0
+    secondReading = 10.0
     while abs(firstReading - secondReading) >= 1:
         # This will just update the IP address
         printToLCD("", "", "", "", False)
@@ -268,10 +268,10 @@ def getScaleReading():
         # the bit triggers are off so I'm hoping resetting the device avoids this.
         scaleSensor.reset()
 
-        firstReading = abs(scaleSensor.get_weight(NUM_READINGS)) / GRAMS_PER_OZ
+        firstReading = Decimal(abs(scaleSensor.get_weight(NUM_READINGS)) / GRAMS_PER_OZ)
         # Delay between readings
         time.sleep(1.0)
-        secondReading = abs(scaleSensor.get_weight(NUM_READINGS)) / GRAMS_PER_OZ
+        secondReading = Decimal(abs(scaleSensor.get_weight(NUM_READINGS)) / GRAMS_PER_OZ)
 
         if PERSIST_TO_DB:
             # Insert the record into the database
