@@ -39,3 +39,12 @@ body, html {
     background-repeat: no-repeat;
     background-size: cover;
 }
+
+#clock {
+    font-family: Orbitron, sans-serif;
+    font-size: 3em;
+}
+
+.card {
+    margin: 10px 10px 10px 10px;
+}

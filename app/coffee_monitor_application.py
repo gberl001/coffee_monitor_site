@@ -16,6 +16,7 @@ from lib.lcddriver import lcd as lcddriver
 from models import WeightReading, ScaleOffsetRecording, Event, DetectedEvent, Carafe, Scale
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
+from decimal import Decimal
 
 # Config
 GRAMS_PER_OZ = 28.35            # Grams to Oz conversion factor
@@ -89,7 +90,7 @@ def setup():
         dbSession.commit()
 
     # Load the scale and carafe objects
-    carafe = dbSession.query(Carafe).filter(Carafe.name == 'PTC').first()
+    carafe = dbSession.query(Carafe).filter(Carafe.name == 'Home').first()
     scale = dbSession.query(Scale).filter(Scale.name == 'PTC').first()
 
     # Setup the scale
@@ -200,7 +201,7 @@ def handleEmptyScale():
         time.sleep(2.0)
 
     # Now that the scale isn't empty, determine if more coffee was added
-    if latestRecordedWeight > previousWeight + scale.cup_weight:
+    if latestRecordedWeight > previousWeight + scale.full_cup_weight:
         # If the new wight is at least one more cup of coffee more than the old, assume a new brew
         handleFreshBrew()
 
@@ -248,7 +249,7 @@ def carafeIsEmpty(reading):
 
 def getCupsRemaining(reading):
     global carafe, scale
-    return (reading - carafe.splatter_point) / scale.cup_weight
+    return (Decimal(reading) - carafe.splatter_point) / scale.full_cup_weight
 
 
 def getScaleReading():
