@@ -8,17 +8,25 @@
         <div class="col-sm-4">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title">Age</h5>
-                    <p class="card-text" id="clock"><%= age %></p>
+                    <h5>Cups Remaining</h5>
                     <div class="progress">
                         <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar"
                              aria-valuenow="75" aria-valuemin="0" aria-valuemax="100" style="width: <%= pct_remaining %>"></div>
                     </div>
-                    <h5 class="card-title"><%= cups_remaining %> Cups Remaining</h5>
+                    <h5 class="card-title"><%= cups_remaining %></h5>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Age</h5>
+                    <p class="card-text" id="clock"><%= age %></p>
                 </div>
             </div>
         </div>
     </div>
+
     <!-- Row 2, Graph card -->
     <div class="row">
         <div class="col-sm-12">
