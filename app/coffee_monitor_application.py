@@ -221,7 +221,8 @@ def handleFreshBrew():
         dbSession.commit()
 
     # Notify Slack
-    pingSlack()
+    # TODO: Temporarily Disable slack updates so not to annoy people
+    # pingSlack()
 
     currentState = State.freshBrew
 
