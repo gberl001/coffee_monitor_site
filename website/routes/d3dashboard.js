@@ -41,7 +41,7 @@ module.exports = {
 
                 // Get the cups remaining
                 query = "SELECT ((SELECT AVG(t1.value) FROM (SELECT value FROM coffee_scale.weight_reading ORDER BY datetime DESC LIMIT 3) as t1) - " +
-                    "(SELECT splatter_point FROM coffee_scale.carafe WHERE name='PTC')) / full_cup_weight as cups_remaining " +
+                    "(SELECT splatter_point FROM coffee_scale.carafe WHERE name='Home')) / full_cup_weight as cups_remaining " +
                     "FROM coffee_scale.scale WHERE name='PTC'";
 
                 db.query(query, (err, result) => {
@@ -53,7 +53,7 @@ module.exports = {
                     query = "SELECT (full_weight - splatter_point) / " +
                         "(SELECT full_cup_weight FROM coffee_scale.scale WHERE name = 'PTC') as total_cups " +
                         "FROM coffee_scale.carafe as t1 " +
-                        "WHERE t1.name='PTC'"
+                        "WHERE t1.name='Home'"
                     db.query(query, (err, result) => {
                         if (err) {
                             res.redirect('/');
