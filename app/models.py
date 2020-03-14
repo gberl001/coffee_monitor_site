@@ -78,3 +78,32 @@ class DetectedEvent(Base):
     def __repr__(self):
         return "DetectedEvent(%r, %r)" % (
             self.event.serialize(), str(self.datetime))
+
+
+class Carafe(Base):
+    __tablename__ = 'carafe'
+    __bind_key__ = 'coffee_scale'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), unique=True, nullable=False)
+    splatter_point = Column(DECIMAL(5, 2), nullable=False)
+    empty_weight = Column(DECIMAL(5, 2), nullable=False)
+    full_weight = Column(DECIMAL(5, 2), nullable=False)
+
+    def __repr__(self):
+        return "Carafe(%r, %r, %r, %r)" % (
+            self.name, self.splatter_point, self.empty_weight, self.full_weight)
+
+
+class Scale(Base):
+    __tablename__ = 'scale'
+    __bind_key__ = 'coffee_scale'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), unique=True, nullable=False)
+    full_cup_weight = Column(DECIMAL(5, 2), nullable=False)
+    empty_scale_threshold = Column(DECIMAL(5, 2), nullable=False)
+
+    def __repr__(self):
+        return "Scale(%r, %r, %r)" % (
+            self.name, self.full_cup_weight, self.empty_scale_threshold)

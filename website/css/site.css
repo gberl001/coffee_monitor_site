@@ -1,0 +1,50 @@
+
+path {
+    stroke: steelblue;
+    stroke-width: 2;
+    fill: none;
+}
+
+.axis path,
+.axis line {
+    fill: none;
+    stroke: grey;
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+}
+
+
+.label {
+    position: absolute;
+}
+
+circle {
+    cursor: pointer;
+    fill: steelblue;
+}
+
+body, html {
+    height: 100%;
+    font: 14px "Helvetica Neue";
+}
+.bg {
+    /* The image used */
+    background-image: url("../lib/images/coffee-and-breakroom.jpg");
+
+    /* Full height */
+    height: 100%;
+
+    /* Center and scale the image nicely */
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+}
+
+#clock {
+    font-family: Orbitron, sans-serif;
+    font-size: 3em;
+}
+
+.card {
+    margin: 10px 10px 10px 10px;
+}
