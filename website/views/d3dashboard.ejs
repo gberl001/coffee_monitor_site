@@ -2,9 +2,36 @@
 
 <body>
 <!--The background div-->
-<div class="bg container-fluid" id="daily_chart">
-    <!-- This div holds the graph -->
-<!--    <div id="daily_chart"></div>-->
+<div class="bg container-fluid">
+    <!-- Row 1, two cards-->
+    <div class="row">
+        <div class="col-sm-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Age</h5>
+                    <p class="card-text" id="clock"><%= age %></p>
+                    <div class="progress">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar"
+                             aria-valuenow="75" aria-valuemin="0" aria-valuemax="100" style="width: <%= pct_remaining %>"></div>
+                    </div>
+                    <h5 class="card-title"><%= cups_remaining %> Cups Remaining</h5>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Row 2, Graph card -->
+    <div class="row">
+        <div class="col-sm-12">
+            <div class="card chart">
+                <div class="card-header">
+                    Coffee To Date
+                </div>
+                <div class="card-body" id="daily_chart">
+                    <!-- Chart ends up here -->
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 <script>
     // import * as d3 from "d3";
@@ -58,9 +85,7 @@
     svg.append("rect")
         .attr("width", "100%")
         .attr("height", "100%")
-        .attr("opacity", 0.7)
-        .attr("fill", "white");
-
+        .attr("opacity", 0)
     // Get the data
     d3.csv("lib/readings_test.csv", function (error, data) {
 

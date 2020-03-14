@@ -26,9 +26,12 @@ module.exports = {
                 console.log("CSV Creation Successful!")
             });
 
-            res.render('d3dashboard.ejs',
-                {title: "Welcome to Coffee Monitor"}
-            );
+            res.render('d3dashboard', {
+                pct_remaining: "74%",
+                age: "1:26",
+                cups_remaining: 5.6,
+                title: "Welcome to Coffee Monitor"
+            });
         });
     },
 };
