@@ -59,7 +59,6 @@ lastBrewTime = 0
 latestRecordedWeight = 0.0
 ipCommand = "hostname -I | cut -d\' \' -f1"
 currentState = State.emptyCarafe    # Start with non-empty scale so it initially records empty scale
-ipAddress = ""
 logging.basicConfig(filename='application.log', level=logging.INFO)
 
 
@@ -223,10 +222,6 @@ def handleFreshBrew():
         dbSession.add(newBrew)
         dbSession.commit()
 
-    # Notify the WiFi module driving the event pin HIGH for half a second
-    GPIO.output(EVENT_PIN, True)
-    time.sleep(0.5)
-    GPIO.output(EVENT_PIN, False)
     # Notify Slack
     pingSlack()
 
