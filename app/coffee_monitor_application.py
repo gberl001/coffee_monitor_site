@@ -14,7 +14,6 @@ import sqlalchemy as db
 from lib.ads1232 import ADS1232
 from lib.lcddriver import lcd as lcddriver
 from models import WeightReading, ScaleOffsetRecording, Event, DetectedEvent
-from models import WeightReading, ScaleOffsetRecording
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 
@@ -144,8 +143,7 @@ def handleCarafeEmpty():
 
     # Record the event in the database
     if PERSIST_TO_DB and currentState != State.emptyCarafe:
-        emptyCarafeEvent = dbSession.query(Event).filter(Event.name == 'Empty Carafe')
-        # emptyCarafeEvent = Event.query.filter_by(name='Empty Carafe').first()
+        emptyCarafeEvent = dbSession.query(Event).filter(Event.name == 'Empty Carafe').first()
         emptyCarafe = DetectedEvent()
         emptyCarafe.event = emptyCarafeEvent
         dbSession.add(emptyCarafe)
@@ -176,8 +174,7 @@ def handleEmptyScale():
 
     # Record the event in the database
     if PERSIST_TO_DB and currentState != State.emptyScale:
-        emptyScaleEvent = dbSession.query(Event).filter(Event.name == 'Empty Scale')
-        # emptyScaleEvent = Event.query.filter_by(name='Empty Scale').first()
+        emptyScaleEvent = dbSession.query(Event).filter(Event.name == 'Empty Scale').first()
         emptyScale = DetectedEvent()
         emptyScale.event = emptyScaleEvent
         dbSession.add(emptyScale)
@@ -215,8 +212,7 @@ def handleFreshBrew():
 
     # Record the event in the database
     if PERSIST_TO_DB and currentState != State.freshBrew:
-        fullBrewEvent = dbSession.query(Event).filter(Event.name == 'Full Brew')
-        # fullBrewEvent = Event.query.filter_by(name='Full Brew').first()
+        fullBrewEvent = dbSession.query(Event).filter(Event.name == 'Full Brew').first()
         newBrew = DetectedEvent()
         newBrew.event = fullBrewEvent
         dbSession.add(newBrew)
