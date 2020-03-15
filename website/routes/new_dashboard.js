@@ -3,12 +3,19 @@ const Json2csvParser = require("json2csv").Parser;
 const d3 = require("d3");
 
 module.exports = {
-    getReadings: (req, res) => {
+    getReadingsNew: (req, res) => {
 
         res.header("Access-Control-Allow-Origin", "*");
 
+
         // Stored procedure gets readings for the current day up to NOW()
-        let query = "call get_todays_readings(null, null)";
+        let seconds = (new Date().getTime() - createdDate('lib/readings_test.csv')) / 1000;
+        let query = "";
+        if (seconds > 60) {
+            query = "call get_todays_readings(null, null)";
+        } else {
+            query = "SELECT 1";
+        }
 
         // Create the CSV data for the chart
         db.query(query, (err, result) => {
@@ -16,15 +23,17 @@ module.exports = {
                 res.redirect('/');
             }
 
-            // Store the info in a CSV
-            const jsonData = JSON.parse(JSON.stringify(result[0]));
-            const json2csvParser = new Json2csvParser({header: true});
-            const csvData = json2csvParser.parse(jsonData);
+            if (seconds > 60) {
+                // Store the info in a CSV
+                const jsonData = JSON.parse(JSON.stringify(result[0]));
+                const json2csvParser = new Json2csvParser({header: true});
+                const csvData = json2csvParser.parse(jsonData);
 
-            fs.writeFile("lib/readings_test.csv", csvData, function (error) {
-                if (error) throw error;
-                console.log("CSV Creation Successful!")
-            });
+                fs.writeFile("lib/readings_test.csv", csvData, function (error) {
+                    if (error) throw error;
+                    console.log("CSV Creation Successful!")
+                });
+            }
 
             // Get the age
             query = "SELECT " +
@@ -61,7 +70,7 @@ module.exports = {
                         }
 
                         var pct = cupsRemaining / result[0].total_cups * 100;
-                        res.render('d3dashboard', {
+                        res.render('new_dashboard', {
                             pct_remaining: pct + "%",
                             age: coffeeAge,
                             cups_remaining: cupsRemaining < 0 ? 0 : cupsRemaining.toFixed(2),
@@ -74,3 +83,9 @@ module.exports = {
         });
     },
 };
+
+function createdDate (file) {
+    const { mtime } = fs.statSync(file);
+
+    return mtime.getTime();
+}

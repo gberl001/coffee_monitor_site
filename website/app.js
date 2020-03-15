@@ -13,6 +13,7 @@ const HTML_DIR = path.join(__dirname, '/');
 app.use(express.static(HTML_DIR));
 
 const {getReadings} = require('./routes/d3dashboard');
+const {getReadingsNew} = require('./routes/new_dashboard');
 
 // MySQL stuff
 let db = mysql.createConnection({
@@ -37,7 +38,9 @@ app.use(bodyParser.json()); // parse form data client
 app.use(cors());
 
 // Routings
-app.get('/', getReadings);
+app.get('/olddashboard', getReadings);
+
+app.get('/', getReadingsNew);
 
 app.get('/static', (request, response, next) => {
     response.sendFile(__dirname + '/views/static_example.html')

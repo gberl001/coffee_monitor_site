@@ -8,10 +8,11 @@
         <div class="col-sm-4">
             <div class="card">
                 <div class="card-body">
-                    <h5>10oz Cups Remaining</h5>
+                    <h5>Cups Remaining (10oz)</h5>
                     <div class="progress">
                         <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar"
-                             aria-valuenow="75" aria-valuemin="0" aria-valuemax="100" style="width: <%= pct_remaining %>"></div>
+                             aria-valuenow="75" aria-valuemin="0" aria-valuemax="100"
+                             style="width: <%= pct_remaining %>"></div>
                     </div>
                     <h5 class="card-title"><%= cups_remaining %></h5>
                 </div>
@@ -42,9 +43,6 @@
     </div>
 </div>
 <script>
-    // import * as d3 from "d3";
-
-    var label = d3.select(".label");
 
     // Set the dimensions of the canvas / graph
     var divWidth = document.getElementById("daily_chart").offsetWidth
@@ -126,15 +124,6 @@
             .style("font", "14px Helvetica")
             .call(d3.axisLeft(y));
 
-        // // Add a clipPath: everything out of this area won't be drawn.
-        // var clip = svg.append("defs").append("svg:clipPath")
-        //     .attr("id", "clip")
-        //     .append("svg:rect")
-        //     .attr("width", width)
-        //     .attr("height", height)
-        //     .attr("x", 0)
-        //     .attr("y", 0);
-
         // Add brushing
         var brush = d3.brushX()                   // Add the brush feature using the d3.brush function
             .extent([[0, 0], [width, height]])  // initialise the brush area: start at 0,0 and finishes at width,height: it means I select the whole graph area
@@ -147,17 +136,13 @@
         // Add the line
         line.append("path")
             .datum(data)
-            .attr("class", "line")  // I add the class line to be able to modify this line later on.
-            .attr("fill", "none")
-            .attr("stroke", "darkgreen")
-            .attr("stroke-width", 2.0)
-            .attr("d", d3.line()
-                .x(function (d) {
-                    return x(d.date)
-                })
-                .y(function (d) {
-                    return y(d.value)
-                })
+            .attr("class", "line")
+            .attr("fill", "darkgreen")
+            .attr("d", d3.area()
+                .curve(d3.curveLinear)
+                .x(d => x(d.date))
+                .y0(y(0))
+                .y1(d => y(d.value))
             );
 
         // Add the brushing
