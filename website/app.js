@@ -16,7 +16,8 @@ const {getReadings} = require('./routes/d3dashboard');
 const {getReadingsNew} = require('./routes/new_dashboard');
 
 // MySQL stuff
-let db = mysql.createConnection({
+let db = mysql.createPool({
+    connectionLimit: 4,
     host: "127.0.0.1",
     user: "adminuser",
     port: "3306",
@@ -24,10 +25,6 @@ let db = mysql.createConnection({
     database: "coffee_scale"
 });
 
-db.connect(function (err) {
-    if (err) throw err;
-    console.log("Connected!");
-});
 global.db = db;
 
 // App stuff
