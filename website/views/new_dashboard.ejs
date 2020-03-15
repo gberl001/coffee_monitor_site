@@ -137,12 +137,12 @@
         line.append("path")
             .datum(data)
             .attr("class", "line")
-            .attr("fill", "darkgreen")
-            .attr("d", d3.area()
-                .curve(d3.curveLinear)
+            .attr("fill", "none")
+            .attr("stroke", "darkgreen")
+            .attr("stroke-width", 2.0)
+            .attr("d", d3.line()
                 .x(d => x(d.date))
-                .y0(y(0))
-                .y1(d => y(d.value))
+                .y(d => y(d.value))
             );
 
         // Add the brushing
