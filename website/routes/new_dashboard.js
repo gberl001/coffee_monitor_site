@@ -9,7 +9,7 @@ module.exports = {
 
 
         // Stored procedure gets readings for the current day up to NOW()
-        let seconds = (new Date().getTime() - createdDate('lib/readings_test.csv')) / 1000;
+        let seconds = (new Date().getTime() - modifiedDate('lib/readings_test.csv')) / 1000;
         let query = "";
         if (seconds > 60) {
             query = "call get_todays_readings(null, null)";
@@ -84,7 +84,7 @@ module.exports = {
     },
 };
 
-function createdDate (file) {
+function modifiedDate (file) {
     const { mtime } = fs.statSync(file);
 
     return mtime.getTime();
