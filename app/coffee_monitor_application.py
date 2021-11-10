@@ -315,7 +315,7 @@ def printToLCD(line1="", line2="", line3="", line4="", clearScreen=True):
 
 
 def pingSlack():
-    url = "https://hooks.slack.com/services/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"
+    url = "url_here"
     message = {'text': 'There is fresh coffee! :coffee::coffee:'}
     response = 0
 
